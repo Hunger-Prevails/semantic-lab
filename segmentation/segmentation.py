@@ -2,10 +2,10 @@ from typing import Any, Optional
 
 from torch import nn
 
-from ..._internally_replaced_utils import load_state_dict_from_url
+from torch.utils.model_zoo import load_url
 from .. import mobilenetv3
 from .. import resnet
-from ..feature_extraction import create_feature_extractor
+from .feature_extraction import create_feature_extractor
 from .deeplabv3 import DeepLabHead, DeepLabV3
 from .fcn import FCN, FCNHead
 from .lraspp import LRASPP
@@ -101,7 +101,7 @@ def _load_weights(model: nn.Module, arch_type: str, backbone: str, progress: boo
     if model_url is None:
         raise NotImplementedError("pretrained {} is not supported as of now".format(arch))
     else:
-        state_dict = load_state_dict_from_url(model_url, progress=progress)
+        state_dict = load_url(model_url, progress=progress)
         model.load_state_dict(state_dict)
 
 
