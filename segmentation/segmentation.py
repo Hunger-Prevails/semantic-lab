@@ -218,7 +218,10 @@ def deeplabv3_mobilenet_v3_large(
 
 
 def lraspp_mobilenet_v3_large(
-    pretrained: bool = False, progress: bool = True, num_classes: int = 21, **kwargs: Any
+    pretrained: bool = False,
+    progress: bool = True,
+    num_classes: int = 21,
+    **kwargs: Any
 ) -> nn.Module:
     """Constructs a Lite R-ASPP Network model with a MobileNetV3-Large backbone.
 

@@ -12,7 +12,6 @@ parser.add_argument('-shuffle', action='store_true', help='shuffle train samples
 parser.add_argument('-half_acc', action='store_true', help='whether to use half precision for speed-up and memory efficiency')
 parser.add_argument('-save_record', action='store_true', help='path to save train record')
 parser.add_argument('-test_only', action='store_true', help='only performs test')
-parser.add_argument('-val_only', action='store_true', help='only performs validation')
 parser.add_argument('-colour', action='store_true', help='whether to perform colour augmentation')
 
 # required options
@@ -30,7 +29,8 @@ parser.add_argument('-n_warmups', default=1, type=int, help='number of warmup it
 parser.add_argument('-n_cudas', default=2, type=int, help='number of cuda devices available')
 parser.add_argument('-n_classes', default=19, type=int, help='number of joints in the dataset')
 parser.add_argument('-n_workers', default=2, type=int, help='number of subprocesses to load data')
-parser.add_argument('-batch_size', default=64, type=int, help='Size of mini-batches for each iteration')
+parser.add_argument('-batch_size', default=64, type=int, help='size of mini-batches for each iteration')
+parser.add_argument('-queue_size', default=16, type=int, help='')
 parser.add_argument('-stride', default=16, type=int, help='stride of network for train')
 
 # learn rate options
@@ -41,7 +41,7 @@ parser.add_argument('-learn_rate_warmup', default=0.1, type=float, help='learn r
 # optimizer options
 parser.add_argument('-grad_clip_norm', default=5.0, type=float, help='norm for gradient clip')
 parser.add_argument('-grad_scale_factor', default=32.0, type=float, help='magnitude of loss scaling when computations are performed in half precision')
-parser.add_argument('-momentum', default=0.9, type=float, help='Momentum for training')
-parser.add_argument('-weight_decay', default=4e-5, type=float, help='Weight decay for training')
+parser.add_argument('-momentum', default=0.9, type=float, help='momentum for gradient accumulation over the iterations')
+parser.add_argument('-weight_decay', default=4e-5, type=float, help='weight decay factor for regularization')
 
 args = parser.parse_args()

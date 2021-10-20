@@ -69,40 +69,32 @@ def create_model(args):
 
 
 def main():
-    assert args.do_track <= args.joint_space
-
     model, state = create_model(args)
     print('=> Model and criterion are ready')
 
     if args.test_only:
-        test_loader, data_info = get_data_loader(args, 'test')
-    elif args.val_only:
-        test_loader, data_info = get_data_loader(args, 'valid')
+        test_loader = get_data_loader(args, 'test')
+        print('=> Dataloaders are ready')
     else:
-        test_loader, data_info = get_data_loader(args, 'valid')
-
-        data_loader, data_info = get_data_loader(args, 'train')
-
-    print('=> Dataloaders are ready')
+        test_loader = get_data_loader(args, 'valid')
+        data_loader = get_data_loader(args, 'train')
+        print('=> Dataloaders are ready')
 
     writer = Writer(args, state)
     print('=> Writer is ready')
 
-    trainer = Trainer(args, model, data_info)
+    trainer = Trainer(args, model, writer)
     print('=> Trainer is ready')
 
-    if args.test_only or args.val_only:
-        test_rec = trainer.test(0, test_loader)
+    if args.test_only:
+        test_rec = trainer.test(test_loader)
 
     else:
-        start_epoch = writer.state['epoch'] + 1
-        print('=> Start training')
-        
-        for epoch in xrange(start_epoch, args.n_epochs + 1):
-            train_rec = trainer.train(epoch, data_loader)
-            test_rec = trainer.test(epoch, test_loader)
+        start_epoch = writer.state['epoch_done'] + 1
+        print('=> Train process starts')
 
-            writer.record(epoch, train_rec, test_rec, model) 
+        for epoch in xrange(start_epoch, args.n_epochs + 1):
+            trainer.train(epoch, data_loader)
 
         writer.final_print()
 
