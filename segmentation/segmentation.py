@@ -8,7 +8,6 @@ from .. import resnet
 from .feature_extraction import create_feature_extractor
 from .deeplabv3 import DeepLabHead, DeepLabV3
 from .fcn import FCN, FCNHead
-from .lraspp import LRASPP
 
 
 __all__ = [
@@ -32,18 +31,18 @@ model_urls = {
 
 
 def _segm_model(
-    name: str, backbone_name: str, num_classes: int, aux: Optional[bool], pretrained_backbone: bool = True
+    name: str, backbone_name: str, num_classes: int, aux: Optional[bool], imagenet: bool = True
 ) -> nn.Module:
     if "resnet" in backbone_name:
         backbone = resnet.__dict__[backbone_name](
-            pretrained=pretrained_backbone, replace_stride_with_dilation=[False, True, True]
+            pretrained=imagenet, replace_stride_with_dilation=[False, True, True]
         )
         out_layer = "layer4"
         out_inplanes = 2048
         aux_layer = "layer3"
         aux_inplanes = 1024
     elif "mobilenet_v3" in backbone_name:
-        backbone = mobilenetv3.__dict__[backbone_name](pretrained=pretrained_backbone, dilated=True).features
+        backbone = mobilenetv3.__dict__[backbone_name](pretrained=imagenet, dilated=True).features
 
         # Gather the indices of blocks which are strided. These are the locations of C1, ..., Cn-1 blocks.
         # The first and last blocks are always included because they are the C0 (conv1) and Cn.
@@ -84,12 +83,11 @@ def _load_model(
     progress: bool,
     num_classes: int,
     aux_loss: Optional[bool],
-    **kwargs: Any,
 ) -> nn.Module:
-    if pretrained:
-        aux_loss = True
-        kwargs["pretrained_backbone"] = False
-    model = _segm_model(arch_type, backbone, num_classes, aux_loss, **kwargs)
+    '''
+    constructs a segmentation model and optionally loads the coco pre-trains
+    '''
+    model = _segm_model(arch_type, backbone, num_classes, aux_loss, not pretrained)
     if pretrained:
         _load_weights(model, arch_type, backbone, progress)
     return model
@@ -105,29 +103,11 @@ def _load_weights(model: nn.Module, arch_type: str, backbone: str, progress: boo
         model.load_state_dict(state_dict)
 
 
-def _segm_lraspp_mobilenetv3(backbone_name: str, num_classes: int, pretrained_backbone: bool = True) -> LRASPP:
-    backbone = mobilenetv3.__dict__[backbone_name](pretrained=pretrained_backbone, dilated=True).features
-
-    # Gather the indices of blocks which are strided. These are the locations of C1, ..., Cn-1 blocks.
-    # The first and last blocks are always included because they are the C0 (conv1) and Cn.
-    stage_indices = [0] + [i for i, b in enumerate(backbone) if getattr(b, "_is_cn", False)] + [len(backbone) - 1]
-    low_pos = stage_indices[-4]  # use C2 here which has output_stride = 8
-    high_pos = stage_indices[-1]  # use C5 which has output_stride = 16
-    low_channels = backbone[low_pos].out_channels
-    high_channels = backbone[high_pos].out_channels
-
-    backbone = create_feature_extractor(backbone, {str(low_pos): "low", str(high_pos): "high"})
-
-    model = LRASPP(backbone, low_channels, high_channels, num_classes)
-    return model
-
-
 def fcn_resnet50(
     pretrained: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = None,
-    **kwargs: Any,
+    aux_loss: Optional[bool] = False,
 ) -> nn.Module:
     """Constructs a Fully-Convolutional Network model with a ResNet-50 backbone.
 
@@ -138,15 +118,14 @@ def fcn_resnet50(
         num_classes (int): number of output classes of the model (including the background)
         aux_loss (bool): If True, it uses an auxiliary loss
     """
-    return _load_model("fcn", "resnet50", pretrained, progress, num_classes, aux_loss, **kwargs)
+    return _load_model("fcn", "resnet50", pretrained, progress, num_classes, aux_loss)
 
 
 def fcn_resnet101(
     pretrained: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = None,
-    **kwargs: Any,
+    aux_loss: Optional[bool] = False,
 ) -> nn.Module:
     """Constructs a Fully-Convolutional Network model with a ResNet-101 backbone.
 
@@ -157,15 +136,14 @@ def fcn_resnet101(
         num_classes (int): number of output classes of the model (including the background)
         aux_loss (bool): If True, it uses an auxiliary loss
     """
-    return _load_model("fcn", "resnet101", pretrained, progress, num_classes, aux_loss, **kwargs)
+    return _load_model("fcn", "resnet101", pretrained, progress, num_classes, aux_loss)
 
 
 def deeplabv3_resnet50(
     pretrained: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = None,
-    **kwargs: Any,
+    aux_loss: Optional[bool] = False,
 ) -> nn.Module:
     """Constructs a DeepLabV3 model with a ResNet-50 backbone.
 
@@ -176,15 +154,14 @@ def deeplabv3_resnet50(
         num_classes (int): number of output classes of the model (including the background)
         aux_loss (bool): If True, it uses an auxiliary loss
     """
-    return _load_model("deeplabv3", "resnet50", pretrained, progress, num_classes, aux_loss, **kwargs)
+    return _load_model("deeplabv3", "resnet50", pretrained, progress, num_classes, aux_loss)
 
 
 def deeplabv3_resnet101(
     pretrained: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = None,
-    **kwargs: Any,
+    aux_loss: Optional[bool] = False,
 ) -> nn.Module:
     """Constructs a DeepLabV3 model with a ResNet-101 backbone.
 
@@ -195,15 +172,14 @@ def deeplabv3_resnet101(
         num_classes (int): The number of classes
         aux_loss (bool): If True, include an auxiliary classifier
     """
-    return _load_model("deeplabv3", "resnet101", pretrained, progress, num_classes, aux_loss, **kwargs)
+    return _load_model("deeplabv3", "resnet101", pretrained, progress, num_classes, aux_loss)
 
 
 def deeplabv3_mobilenet_v3_large(
     pretrained: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = None,
-    **kwargs: Any,
+    aux_loss: Optional[bool] = False,
 ) -> nn.Module:
     """Constructs a DeepLabV3 model with a MobileNetV3-Large backbone.
 
@@ -214,32 +190,4 @@ def deeplabv3_mobilenet_v3_large(
         num_classes (int): number of output classes of the model (including the background)
         aux_loss (bool): If True, it uses an auxiliary loss
     """
-    return _load_model("deeplabv3", "mobilenet_v3_large", pretrained, progress, num_classes, aux_loss, **kwargs)
-
-
-def lraspp_mobilenet_v3_large(
-    pretrained: bool = False,
-    progress: bool = True,
-    num_classes: int = 21,
-    **kwargs: Any
-) -> nn.Module:
-    """Constructs a Lite R-ASPP Network model with a MobileNetV3-Large backbone.
-
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on COCO train2017 which
-            contains the same classes as Pascal VOC
-        progress (bool): If True, displays a progress bar of the download to stderr
-        num_classes (int): number of output classes of the model (including the background)
-    """
-    if kwargs.pop("aux_loss", False):
-        raise NotImplementedError("This model does not use auxiliary loss")
-
-    backbone_name = "mobilenet_v3_large"
-    if pretrained:
-        kwargs["pretrained_backbone"] = False
-    model = _segm_lraspp_mobilenetv3(backbone_name, num_classes, **kwargs)
-
-    if pretrained:
-        _load_weights(model, "lraspp", backbone_name, progress)
-
-    return model
+    return _load_model("deeplabv3", "mobilenet_v3_large", pretrained, progress, num_classes, aux_loss)
