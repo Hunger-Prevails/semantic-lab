@@ -2,19 +2,13 @@ import torch
 import torch.nn as nn
 import numpy as np
 import torch.optim as optim
-import mat_utils
-import utils
-import queue
-
-from torch.autograd import Variable
-from builtins import zip as xzip
-
 
 class Trainer:
 
-    def __init__(self, args, model, writer):
+    def __init__(self, args, model, writer, adapter):
         self.model = model
         self.writer = writer
+        self.adapter = adapter
 
         self.list_params = list(model.parameters())
 
@@ -30,17 +24,13 @@ class Trainer:
         else:
             self.optimizer = optim.Adam(self.list_params, args.learn_rate, weight_decay = args.weight_decay)
 
-        self.n_epochs = args.n_epochs
-        self.n_iters_warmup = args.n_iters_warmup
-        self.n_iters_check_loss = args.n_iters_check_loss
-        self.n_iters_check_model = args.n_iters_check_model
         self.half_acc = args.half_acc
 
-        self.learn_rate = args.learn_rate
         self.grad_clip_norm = args.grad_clip_norm
         self.grad_scale_factor = args.grad_scale_factor
 
         self.criterion = nn.__dict__[args.criterion + 'Loss'](reduction = 'mean').cuda()
+
 
     def train(self, epoch, data_loader, device):
         self.model.train()
@@ -48,19 +38,14 @@ class Trainer:
 
         n_batches = len(data_loader)
 
-        batch_loss = list()
-
         for i, (images, labels) in enumerate(data_loader):
 
             images = images.to(device)
-            labels = labels.to(device)
+            labels = labels.to(device, dtype = torch.long)
 
             predictions = self.model(images)
 
             loss = self.criterion(predictions, labels)
-
-            batch_size.append(images.size(0))
-            batch_loss.append(loss)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -68,24 +53,22 @@ class Trainer:
             nn.utils.clip_grad_norm_(self.list_params, self.grad_norm)
             self.optimizer.step()
 
-            disp_loss = np.sum(batch_loss[max(i - self.n_iters_check_loss + 1, 0):i + 1]) / min(i + 1, self.n_iters_check_loss)
+            self.writer.inc_iter(loss.item())
+            self.writer.check_model(self)
 
-            print('| train Epoch[%d] [%d/%d] | Loss %1.4f' % (epoch, i, n_batches, disp_loss))
+            print('| train Epoch[{:d}] [{:d}:{:d}]'.format(epoch, i + 1, n_batches), self.writer.get_loss())
 
-        print('\n=> | train Epoch[%d] finishes | Loss: %1.4f <=\n' % (epoch, np.sum(batch_loss) / n_batches))
+            self.adapter.schedule(self.writer.state)
 
-        writer.integrate_loss(n_batches, batch_loss)
+        self.writer.inc_epoch()
 
-    def adapt_learn_rate(self, epoch):
-        if epoch - 1 < self.num_epochs * 0.6:
-            learn_rate = self.learn_rate
-        elif epoch - 1 < self.num_epochs * 0.9:
-            learn_rate = self.learn_rate * 0.2
-        else:
-            learn_rate = self.learn_rate * 0.04
+        print('\n=> | train Epoch[{:d}}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(epoch, self.writer.get_epoch_mean(n_batches)))
 
-        if self.do_track and epoch != 1:
-            learn_rate /= 2
+        self.adapter.schedule(self.writer.state)
 
-        for group in self.optimizer.param_groups:
-            group['lr'] = learn_rate
+
+    def eval(self, test_loader, device):
+        self.model.eval()
+
+    def get_model(self):
+        return self.model.module if torch.typename(model).find('DataParallel') != -1 else self.model

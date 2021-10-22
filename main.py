@@ -6,6 +6,7 @@ import torch.backends.cudnn as cudnn
 from opts import args
 from datasets import get_data_loader
 from writer import Writer
+from adapter import Adapter
 from train import Trainer
 
 import segmentation
@@ -33,33 +34,33 @@ def create_model(args):
 
 def main():
     model, state = create_model(args)
-    print('=> Model and criterion are ready')
+    print('=> model and criterion are ready')
 
     if args.test_only:
         test_loader = get_data_loader(args, 'test')
-        print('=> Dataloaders are ready')
     else:
         test_loader = get_data_loader(args, 'valid')
         data_loader = get_data_loader(args, 'train')
-        print('=> Dataloaders are ready')
+    print('=> dataloaders are ready')
 
-    writer = Writer(args, state)
-    print('=> Writer is ready')
+    writer = Writer(args, state, test_loader)
+    print('=> writer is ready')
 
-    trainer = Trainer(args, model, writer)
-    print('=> Trainer is ready')
+    adapter = Adapter(args)
+    print('=> adapter is ready')
+
+    trainer = Trainer(args, model, writer, adapter)
+    print('=> trainer is ready')
 
     if args.test_only:
-        test_rec = trainer.test(test_loader)
+        test_rec = trainer.test()
 
     else:
-        start_epoch = writer.state['epoch_done'] + 1
+        start_epoch = writer.state['past_epochs'] + 1
         print('=> Train process starts')
 
         for epoch in xrange(start_epoch, args.n_epochs + 1):
             trainer.train(epoch, data_loader, torch.device('cuda'))
-
-        writer.final_print()
 
 if __name__ == '__main__':
     main()
