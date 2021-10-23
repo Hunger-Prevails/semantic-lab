@@ -6,7 +6,6 @@ import torch.backends.cudnn as cudnn
 from opts import args
 from datasets import get_data_loader
 from writer import Writer
-from adapter import Adapter
 from train import Trainer
 
 import segmentation
@@ -46,14 +45,11 @@ def main():
     writer = Writer(args, state, test_loader)
     print('=> writer is ready')
 
-    adapter = Adapter(args)
-    print('=> adapter is ready')
-
-    trainer = Trainer(args, model, writer, adapter)
+    trainer = Trainer(args, model, writer)
     print('=> trainer is ready')
 
     if args.test_only:
-        test_rec = trainer.test()
+        test_rec = trainer.eval(test_loader, torch.device('cuda'))
 
     else:
         start_epoch = writer.state['past_epochs'] + 1

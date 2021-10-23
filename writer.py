@@ -80,9 +80,10 @@ class Writer:
 
 
     def check_model(self, trainer):
-        if self.state['past_iters'] % self.n_iters_check_model == 0:
+        if self.state['past_iters'] % self.n_iters_check_model != 0:
+            return
 
-            self.records['metrics'][self.state['past_iters']] = trainer.eval(self.test_loader， torch.device('cuda'))
+        self.records['metrics'][self.state['past_iters']] = trainer.eval(self.test_loader， torch.device('cuda'))
 
-            self.save_model(trainer.get_model())
-            self.save_records()
+        self.save_model(trainer.get_model())
+        self.save_records()

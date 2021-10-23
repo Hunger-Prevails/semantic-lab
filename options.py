@@ -24,10 +24,10 @@ parser.add_argument('-save_path', required=True, help='Path to save train record
 parser.add_argument('-criterion', required=True, help='criterion function for estimation loss')
 
 # integer options
-parser.add_argument('-n_iters_warmup', default=256, type=int, help='number of iterations in the warmup phase')
+parser.add_argument('-n_epochs', default=20, type=int, help='number of total epochs')
+parser.add_argument('-n_iters_start', default=256, type=int, help='number of iterations in the warmup phase')
 parser.add_argument('-n_iters_check_loss', default=32, type=int, help='number of iterations over which to average the losses')
 parser.add_argument('-n_iters_check_model', default=2048, type=int, help='number of iterations before next validation checkpoint')
-parser.add_argument('-n_epochs', default=20, type=int, help='number of total epochs')
 parser.add_argument('-n_cudas', default=2, type=int, help='number of cuda devices available')
 parser.add_argument('-n_classes', default=19, type=int, help='number of joints in the dataset')
 parser.add_argument('-n_workers', default=2, type=int, help='number of subprocesses to load data')
@@ -35,9 +35,10 @@ parser.add_argument('-batch_size', default=64, type=int, help='size of mini-batc
 parser.add_argument('-stride', default=16, type=int, help='stride of network for train')
 
 # learn rate options
-parser.add_argument('-learn_rate', default=1e-3, type=float, help='base learn rate')
-parser.add_argument('-learn_rate_decay', default=0.2, type=float, help='learn rate decay factor')
-parser.add_argument('-learn_rate_warmup', default=0.1, type=float, help='learn rate decay for warmup phase')
+parser.add_argument('-learn_rate', default=1e-2, type=float, help='base learn rate')
+parser.add_argument('-learn_rate_start', default=0.1, type=float, help='start learn rate')
+parser.add_argument('-learn_rate_decay', default=0.5, type=float, help='learn rate decay for polynomial schedule')
+parser.add_argument('-learn_rate_bottom', default=1e-5, type=float, help='bottom learn rate')
 
 # optimizer options
 parser.add_argument('-grad_clip_norm', default=5.0, type=float, help='norm for gradient clip')

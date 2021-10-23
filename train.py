@@ -3,12 +3,14 @@ import torch.nn as nn
 import numpy as np
 import torch.optim as optim
 
+from adapter import Adapter
+from metrics import ConfusionCounter as Counter
+
 class Trainer:
 
-    def __init__(self, args, model, writer, adapter):
+    def __init__(self, args, model, writer):
         self.model = model
         self.writer = writer
-        self.adapter = adapter
 
         self.list_params = list(model.parameters())
 
@@ -24,7 +26,10 @@ class Trainer:
         else:
             self.optimizer = optim.Adam(self.list_params, args.learn_rate, weight_decay = args.weight_decay)
 
+        self.adapter = Adapter(args, self.optimizer)
+
         self.half_acc = args.half_acc
+        self.n_classes = args.n_classes
 
         self.grad_clip_norm = args.grad_clip_norm
         self.grad_scale_factor = args.grad_scale_factor
@@ -34,18 +39,17 @@ class Trainer:
 
     def train(self, epoch, data_loader, device):
         self.model.train()
-        self.adapt_learn_rate(epoch)
-
         n_batches = len(data_loader)
+        self.adapter.schedule(self.writer.state)
 
         for i, (images, labels) in enumerate(data_loader):
 
             images = images.to(device)
             labels = labels.to(device, dtype = torch.long)
 
-            predictions = self.model(images)
+            logits = self.model(images)
 
-            loss = self.criterion(predictions, labels)
+            loss = self.criterion(logits, labels)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -64,11 +68,24 @@ class Trainer:
 
         print('\n=> | train Epoch[{:d}}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(epoch, self.writer.get_epoch_mean(n_batches)))
 
-        self.adapter.schedule(self.writer.state)
-
 
     def eval(self, test_loader, device):
         self.model.eval()
+        counter = Counter(self.n_classes)
+
+        for images, labels in test_loader:
+
+            images = images.to(device)
+
+            with torch.no_grad():
+                logits = self.model(images)
+
+            predictions = outputs.detach().cpu().numpy().max(dim = 1)[1]
+
+            metrics.update(labels, predictions)
+
+        return counter.to_metrics()
+
 
     def get_model(self):
         return self.model.module if torch.typename(model).find('DataParallel') != -1 else self.model
