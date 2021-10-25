@@ -41,8 +41,8 @@ parser.add_argument('-learn_rate_decay', default=0.5, type=float, help='learn ra
 parser.add_argument('-learn_rate_bottom', default=1e-5, type=float, help='bottom learn rate')
 
 # optimizer options
+parser.add_argument('-weight_decay', default=5e-4, type=float, help='weight decay factor for regularization')
 parser.add_argument('-grad_clip_norm', default=5.0, type=float, help='norm for gradient clip')
 parser.add_argument('-grad_scale_factor', default=32.0, type=float, help='magnitude of loss scaling when computations are performed in half precision')
-parser.add_argument('-weight_decay', default=4e-5, type=float, help='weight decay factor for regularization')
 
 args = parser.parse_args()

@@ -38,7 +38,7 @@ def main():
     if args.test_only:
         test_loader = get_data_loader(args, 'test')
     else:
-        test_loader = get_data_loader(args, 'valid')
+        test_loader = get_data_loader(args, 'validation')
         data_loader = get_data_loader(args, 'train')
     print('=> dataloaders are ready')
 
