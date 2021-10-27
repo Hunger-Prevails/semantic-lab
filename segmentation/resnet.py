@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from .._internally_replaced_utils import load_state_dict_from_url
+from torch.utils.model_zoo import load_url
 
 
 __all__ = [
@@ -291,7 +291,7 @@ def _resnet(
 ) -> ResNet:
     model = ResNet(block, layers, **kwargs)
     if pretrained:
-        state_dict = load_state_dict_from_url(model_urls[arch], progress=progress)
+        state_dict = load_url(model_urls[arch], progress=progress)
         model.load_state_dict(state_dict)
     return model
 

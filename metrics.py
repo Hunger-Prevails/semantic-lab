@@ -26,8 +26,8 @@ class ConfusionCounter(Counter):
 
 
     def update(self, labels, predictions):
-        matrices = [self.fast_hist(label.flatten(), prediction.flatten()) for label, prediction in zip(labels, predictions)]
-        map(lambda matrix:self.confusion += matrix, matrices)
+        for label, prediction in zip(labels, predictions):
+            self.confusion += self.fast_hist(label.flatten(), prediction.flatten())
 
 
     def fast_hist(self, label, prediction):

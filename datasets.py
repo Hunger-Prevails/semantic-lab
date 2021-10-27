@@ -10,7 +10,7 @@ import torch.utils.data as data
 from torchvision import transforms
 
 
-def data_loader(args, phase):
+def get_loader(args, phase):
     dataset = Dataset(args, phase)
 
     shuffle = args.shuffle if phase == 'train' else False

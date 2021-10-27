@@ -3,11 +3,10 @@ from typing import Any, Optional
 from torch import nn
 
 from torch.utils.model_zoo import load_url
-from .. import mobilenetv3
-from .. import resnet
-from .feature_extraction import create_feature_extractor
-from .deeplabv3 import DeepLabHead, DeepLabV3
-from .fcn import FCN, FCNHead
+import resnet
+from feature_extraction import create_feature_extractor
+from deeplabv3 import DeepLabHead, DeepLabV3
+from fcn import FCN, FCNHead
 
 
 __all__ = [
@@ -16,7 +15,6 @@ __all__ = [
     "deeplabv3_resnet50",
     "deeplabv3_resnet101",
     "deeplabv3_mobilenet_v3_large",
-    "lraspp_mobilenet_v3_large",
 ]
 
 
@@ -26,7 +24,6 @@ model_urls = {
     "deeplabv3_resnet50_coco": "https://download.pytorch.org/models/deeplabv3_resnet50_coco-cd0a2569.pth",
     "deeplabv3_resnet101_coco": "https://download.pytorch.org/models/deeplabv3_resnet101_coco-586e9e4e.pth",
     "deeplabv3_mobilenet_v3_large_coco": "https://download.pytorch.org/models/deeplabv3_mobilenet_v3_large-fc3c493d.pth",
-    "lraspp_mobilenet_v3_large_coco": "https://download.pytorch.org/models/lraspp_mobilenet_v3_large-d234d4ea.pth",
 }
 
 

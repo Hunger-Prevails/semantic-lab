@@ -3,21 +3,20 @@ import argparse
 parser = argparse.ArgumentParser(description='parser for all pipeline configurations')
 
 # model init options
-model_init = parser.add_mutually_exclusive_group(True)
+model_init = parser.add_mutually_exclusive_group(required = True)
 model_init.add_argument('-pretrain', action='store_true', help='loads a coco pre-train if true otherwise loads a imagenet pre-train')
 model_init.add_argument('-resume', action='store_true', help='whether to continue from a previous checkpoint')
 
 # bool options
 parser.add_argument('-shuffle', action='store_true', help='shuffle train samples at the start of each epoch')
 parser.add_argument('-half_acc', action='store_true', help='whether to use half precision for speed-up and memory efficiency')
-parser.add_argument('-save_record', action='store_true', help='path to save train record')
 parser.add_argument('-test_only', action='store_true', help='only performs test')
 parser.add_argument('-colour', action='store_true', help='whether to perform colour augmentation')
 
 # required options
 parser.add_argument('-backbone', required=True, help='backbone architecture')
 parser.add_argument('-head', required=True, help='head struction')
-parser.add_argument('-model_path', help='path to an imagenet pre-train or checkpoint')
+parser.add_argument('-model_path', help='path to a checkpoint model')
 parser.add_argument('-suffix', required=True, help='Model suffix')
 parser.add_argument('-data_name', required=True, help='name of dataset')
 parser.add_argument('-save_path', required=True, help='Path to save train record')
@@ -29,7 +28,7 @@ parser.add_argument('-n_iters_start', default=256, type=int, help='number of ite
 parser.add_argument('-n_iters_check_loss', default=32, type=int, help='number of iterations over which to average the losses')
 parser.add_argument('-n_iters_check_model', default=2048, type=int, help='number of iterations before next validation checkpoint')
 parser.add_argument('-n_cudas', default=2, type=int, help='number of cuda devices available')
-parser.add_argument('-n_classes', default=19, type=int, help='number of joints in the dataset')
+parser.add_argument('-n_classes', default=36, type=int, help='number of joints in the dataset')
 parser.add_argument('-n_workers', default=2, type=int, help='number of subprocesses to load data')
 parser.add_argument('-batch_size', default=64, type=int, help='size of mini-batches for each iteration')
 parser.add_argument('-stride', default=16, type=int, help='stride of network for train')

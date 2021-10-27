@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 
-from opts import args
-from datasets import get_data_loader
+from options import args
+from datasets import get_loader
 from writer import Writer
 from train import Trainer
 
@@ -26,7 +26,7 @@ def create_model(args):
         state = checkpoint['state']
 
     cudnn.benchmark = True
-    nn.DataParallel(model, device_ids = range(args.n_cudas)).cuda() if args.n_cudas != 1 else model = model.cuda()
+    model = nn.DataParallel(model, device_ids = range(args.n_cudas)).cuda() if args.n_cudas != 1 else model.cuda()
 
     return model, state
 
