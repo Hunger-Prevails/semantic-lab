@@ -1,6 +1,6 @@
 class Adapter:
 
-    def __init__(self, optimizer, args):
+    def __init__(self, args, optimizer):
         self.optimizer = optimizer
 
         self.n_epochs = args.n_epochs

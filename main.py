@@ -15,7 +15,7 @@ def create_model(args):
     model_name = args.head + '_' + args.backbone
 
     assert hasattr(segmentation, model_name)
-    model = getattr(segmentation, model_name)(args.pretrain, True, args.n_classes)
+    model = getattr(segmentation, model_name)(args.pretrain, True, args.n_classes, args.aux_loss)
     state = None
 
     if args.resume or args.test_only:
@@ -32,31 +32,38 @@ def create_model(args):
 
 
 def main():
+    print('\n=> prepares a model')
     model, state = create_model(args)
-    print('=> model and criterion are ready')
+    print('<= a model is ready')
 
+    print('\n=> prepares data loaders')
     if args.test_only:
-        test_loader = get_data_loader(args, 'test')
+        test_loader = get_loader(args, 'test')
     else:
-        test_loader = get_data_loader(args, 'validation')
-        data_loader = get_data_loader(args, 'train')
-    print('=> dataloaders are ready')
+        test_loader = get_loader(args, 'validation')
+        data_loader = get_loader(args, 'train')
+    print('<= data loaders are ready')
 
+    print('\n=> prepares a writer')
     writer = Writer(args, state, test_loader)
-    print('=> writer is ready')
+    print('<= a writer is ready')
 
+    print('\n=> prepares a trainer')
     trainer = Trainer(args, model, writer)
-    print('=> trainer is ready')
+    print('<= a trainer is ready')
 
     if args.test_only:
+        print('\n=> validation starts')
         test_rec = trainer.eval(test_loader, torch.device('cuda'))
-
+        print('<= validation finishes')
     else:
+        print('\n=> train starts')
         start_epoch = writer.state['past_epochs'] + 1
-        print('=> Train process starts')
 
-        for epoch in xrange(start_epoch, args.n_epochs + 1):
+        for epoch in range(start_epoch, args.n_epochs + 1):
             trainer.train(epoch, data_loader, torch.device('cuda'))
+
+        print('<= train finishes')
 
 if __name__ == '__main__':
     main()

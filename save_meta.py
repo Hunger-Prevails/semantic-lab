@@ -11,7 +11,7 @@ meta['mean'] = mean
 stddvn = [0.229, 0.224, 0.225]
 meta['stddvn'] = stddvn
 
-root = dict(smile_view = '/home/yinglun.liu/semantic-lab')
+root = dict(smile_view = '/home/yinglun.liu/Datasets/smile_view')
 meta['root'] = root
 
 smile_view_anno = [

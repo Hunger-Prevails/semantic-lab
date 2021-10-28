@@ -19,7 +19,7 @@ class Writer:
 
         self.config_path = os.path.join(self.save_path, 'configs.json')
         with open(self.config_path, 'w') as file:
-            file.write(json.dumps(args))
+            file.write(json.dumps(vars(args)))
 
         self.record_path = os.path.join(self.save_path, 'records.json')
         if args.resume:

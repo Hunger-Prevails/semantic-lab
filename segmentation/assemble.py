@@ -3,10 +3,11 @@ from typing import Any, Optional
 from torch import nn
 
 from torch.utils.model_zoo import load_url
-import resnet
-from feature_extraction import create_feature_extractor
-from deeplabv3 import DeepLabHead, DeepLabV3
-from fcn import FCN, FCNHead
+from . import resnet
+from .feature_extraction import create_feature_extractor
+from .deeplabv3 import DeepLabHead
+from .fcn import FCNHead
+from ._utils import SegmentationModel
 
 
 __all__ = [
@@ -62,15 +63,10 @@ def _segm_model(
     if aux:
         aux_classifier = FCNHead(aux_inplanes, num_classes)
 
-    model_map = {
-        "deeplabv3": (DeepLabHead, DeepLabV3),
-        "fcn": (FCNHead, FCN),
-    }
-    classifier = model_map[name][0](out_inplanes, num_classes)
-    base_model = model_map[name][1]
+    head_creator = dict(deeplabv3 = DeepLabHead, fcn = FCNHead)
+    classifier = head_creator[name](out_inplanes, num_classes)
 
-    model = base_model(backbone, classifier, aux_classifier)
-    return model
+    return SegmentationModel(backbone, classifier, aux_classifier)
 
 
 def _load_model(
@@ -92,12 +88,24 @@ def _load_model(
 
 def _load_weights(model: nn.Module, arch_type: str, backbone: str, progress: bool) -> None:
     arch = arch_type + "_" + backbone + "_coco"
-    model_url = model_urls.get(arch, None)
-    if model_url is None:
-        raise NotImplementedError("pretrained {} is not supported as of now".format(arch))
-    else:
-        state_dict = load_url(model_url, progress=progress)
-        model.load_state_dict(state_dict)
+
+    assert arch in model_urls
+
+    state_dict = load_url(model_urls.get(arch), progress = progress)
+    model_dict = model.state_dict()
+        
+    keys = list(state_dict.keys())
+
+    for key in keys:
+        if key not in model_dict:
+            print('\tkey [', key, '] deleted due to redundancy')
+            del state_dict[key]
+        elif state_dict.get(key).size() != model_dict.get(key).size():
+            print('\tkey [', key, '] deleted due to shape mismatch')
+            del state_dict[key]
+
+    model_dict.update(state_dict)
+    model.load_state_dict(model_dict)
 
 
 def fcn_resnet50(

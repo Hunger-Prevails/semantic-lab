@@ -12,6 +12,7 @@ parser.add_argument('-shuffle', action='store_true', help='shuffle train samples
 parser.add_argument('-half_acc', action='store_true', help='whether to use half precision for speed-up and memory efficiency')
 parser.add_argument('-test_only', action='store_true', help='only performs test')
 parser.add_argument('-colour', action='store_true', help='whether to perform colour augmentation')
+parser.add_argument('-aux_loss', action='store_true', help='whether to introduce an auxiliary loss term on intermediate feature maps')
 
 # required options
 parser.add_argument('-backbone', required=True, help='backbone architecture')

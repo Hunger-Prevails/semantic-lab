@@ -15,7 +15,7 @@ def get_loader(args, phase):
 
     shuffle = args.shuffle if phase == 'train' else False
 
-    return data.DataLoader(dataset, args.batch_size, shuffle, num_workers = args.workers, pin_memory = True)
+    return data.DataLoader(dataset, args.batch_size, shuffle, num_workers = args.n_workers, pin_memory = True)
 
 
 class Sample:
@@ -31,7 +31,7 @@ class Dataset(data.Dataset):
         self.data_name = args.data_name
         self.n_classes = args.n_classes
 
-        with open('./metadata.json') as file:
+        with open('metadata.json') as file:
             metadata = json.load(file)
 
         self.root = metadata['root'][args.data_name]
@@ -44,13 +44,15 @@ class Dataset(data.Dataset):
 
         self.transforms = [
             transforms.ToTensor(),
-            transforms.Normalize(mean = metadata['mean'], std = metadata['deviation'])
+            transforms.Normalize(mean = metadata['mean'], std = metadata['stddvn'])
         ]
         self.transforms = transforms.Compose(self.transforms)
 
+        print('\tcollects [', self.__len__(), ']', phase, 'samples')
+
 
     def get_smile_view_samples(self, phase):
-        files = glob.glob(os.path.join(self.root, self.phase))
+        files = glob.glob(os.path.join(self.root, self.phase, '*.png'))
         files.sort()
 
         image_files = files[0::2]
@@ -60,8 +62,8 @@ class Dataset(data.Dataset):
 
 
     def parse_sample(self, sample):
-        image = cv2.imread(image)
-        label_image = cv2.imread(sample)
+        image = cv2.imread(sample.image_path)
+        label_image = cv2.imread(sample.label_path)
 
         image = self.transforms(random_color(image) if self.colour else image)
         label = self.to_label(label_image)
