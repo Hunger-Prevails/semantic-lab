@@ -34,55 +34,67 @@ class Trainer:
         self.grad_clip_norm = args.grad_clip_norm
         self.grad_scale_factor = args.grad_scale_factor
 
-        self.criterion = nn.__dict__[args.criterion + 'Loss'](reduction = 'mean').cuda()
+        self.criterion = nn.__dict__[args.criterion + 'Loss'](reduction = 'mean', ignore_index = args.n_classes).cuda()
 
 
     def train(self, epoch, data_loader, device):
         self.model.train()
-        n_batches = len(data_loader)
         self.adapter.schedule(self.writer.state)
 
+        n_batches = len(data_loader)
+        n_batches = 10
+
         for i, (images, labels) in enumerate(data_loader):
+            if n_batches <= i:
+                break
 
             images = images.to(device)
             labels = labels.to(device, dtype = torch.long)
 
             logits = self.model(images)
 
-            loss = self.criterion(logits, labels)
+            loss = self.criterion(logits['out'], labels)
 
             self.optimizer.zero_grad()
             loss.backward()
 
-            nn.utils.clip_grad_norm_(self.list_params, self.grad_norm)
+            nn.utils.clip_grad_norm_(self.list_params, self.grad_clip_norm)
             self.optimizer.step()
 
             self.writer.inc_iter(loss.item())
             self.writer.check_model(self)
 
-            print('| train Epoch[{:d}] [{:d}:{:d}]'.format(epoch, i + 1, n_batches), self.writer.get_loss())
+            print('\t| train Epoch[{:d}] [{:d}:{:d}]'.format(epoch, i + 1, n_batches), self.writer.get_loss())
 
             self.adapter.schedule(self.writer.state)
 
         self.writer.inc_epoch()
 
-        print('\n=> | train Epoch[{:d}}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(epoch, self.writer.get_epoch_mean(n_batches)))
+        print('\n=> | train Epoch[{:d}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(epoch, self.writer.get_epoch_mean(n_batches)))
 
 
     def eval(self, test_loader, device):
         self.model.eval()
         counter = Counter(self.n_classes)
 
-        for images, labels in test_loader:
+        n_batches = len(test_loader)
+        n_batches = 10
+
+        for i, (images, labels) in enumerate(test_loader):
+            if n_batches <= i:
+                break
 
             images = images.to(device)
 
             with torch.no_grad():
                 logits = self.model(images)
 
-            predictions = outputs.detach().cpu().numpy().max(dim = 1)[1]
+            labels = labels.cpu().numpy()
+            predictions = logits['out'].detach().cpu().numpy().argmax(axis = 1)
 
-            metrics.update(labels, predictions)
+            counter.update(labels, predictions)
+
+            print('\t| test Batch [{:d}:{:d}] |'.format(i + 1, n_batches))
 
         return counter.to_metrics()
 

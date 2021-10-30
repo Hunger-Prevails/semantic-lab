@@ -50,10 +50,12 @@ class Writer:
         window_sum = np.sum(self.records['losses'][max(self.state['past_iters'] - self.n_iters_check_loss, 0):self.state['past_iters']])
         window_mean = window_sum / min(self.state['past_iters'], self.n_iters_check_loss)
 
-        return 'Iter[{:d}] | Loss {:1.4f}'.format(self.state['past_iters'], window_mean)
+        return 'Iter[{:d}] |\tLoss {:1.4f}'.format(self.state['past_iters'], window_mean)
 
 
     def get_epoch_mean(self, n_batches):
+        print('n_batches:', n_batches)
+        print(self.records['losses'][- n_batches:])
         return np.sum(self.records['losses'][- n_batches:]) / n_batches
 
 

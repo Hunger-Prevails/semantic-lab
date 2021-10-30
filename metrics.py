@@ -4,8 +4,6 @@ class Counter():
 
     def __init__(self, n_classes):
         self.n_classes = n_classes
-        '''to override'''
-        raise NotImplementedError()
 
 
     def update(self, gt, pred):

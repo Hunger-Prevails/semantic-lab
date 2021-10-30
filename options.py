@@ -11,7 +11,7 @@ model_init.add_argument('-resume', action='store_true', help='whether to continu
 parser.add_argument('-shuffle', action='store_true', help='shuffle train samples at the start of each epoch')
 parser.add_argument('-half_acc', action='store_true', help='whether to use half precision for speed-up and memory efficiency')
 parser.add_argument('-test_only', action='store_true', help='only performs test')
-parser.add_argument('-colour', action='store_true', help='whether to perform colour augmentation')
+parser.add_argument('-enc_colour', action='store_true', help='whether to perform colour augmentation')
 parser.add_argument('-aux_loss', action='store_true', help='whether to introduce an auxiliary loss term on intermediate feature maps')
 
 # required options
@@ -27,7 +27,7 @@ parser.add_argument('-criterion', required=True, help='criterion function for es
 parser.add_argument('-n_epochs', default=20, type=int, help='number of total epochs')
 parser.add_argument('-n_iters_start', default=256, type=int, help='number of iterations in the warmup phase')
 parser.add_argument('-n_iters_check_loss', default=32, type=int, help='number of iterations over which to average the losses')
-parser.add_argument('-n_iters_check_model', default=2048, type=int, help='number of iterations before next validation checkpoint')
+parser.add_argument('-n_iters_check_model', default=512, type=int, help='number of iterations before next validation checkpoint')
 parser.add_argument('-n_cudas', default=2, type=int, help='number of cuda devices available')
 parser.add_argument('-n_classes', default=36, type=int, help='number of joints in the dataset')
 parser.add_argument('-n_workers', default=2, type=int, help='number of subprocesses to load data')
