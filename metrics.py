@@ -36,14 +36,14 @@ class ConfusionCounter(Counter):
     def to_metrics(self):
         hist = self.confusion
         accuracy = np.diag(hist).sum() / hist.sum()
-        recall_per_class = np.diag(hist) / hist.sum(axis = 1)
-        overlap_per_class = np.diag(hist) / (hist.sum(axis = 1) + hist.sum(axis = 0) - np.diag(hist))
+        recall_by_class = np.diag(hist) / (hist.sum(axis = 1) + 1e-6)
+        overlap_by_class = np.diag(hist) / (hist.sum(axis = 1) + hist.sum(axis = 0) - np.diag(hist) + 1e-6)
         class_density = hist.sum(axis = 1) / hist.sum()
-        overlap_by_density = np.dot(class_density, overlap_per_class)
+        overlap_by_density = np.dot(class_density, overlap_by_class)
 
         return dict(
             accuracy = accuracy,
-            recall_per_class = recall_per_class,
-            overlap_per_class = overlap_per_class,
+            recall_by_class = recall_by_class.tolist(),
+            overlap_by_class = overlap_by_class.tolist(),
             overlap_by_density = overlap_by_density
         )

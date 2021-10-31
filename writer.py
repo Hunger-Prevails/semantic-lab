@@ -54,8 +54,6 @@ class Writer:
 
 
     def get_epoch_mean(self, n_batches):
-        print('n_batches:', n_batches)
-        print(self.records['losses'][- n_batches:])
         return np.sum(self.records['losses'][- n_batches:]) / n_batches
 
 
@@ -63,7 +61,7 @@ class Writer:
         if torch.typename(model).find('DataParallel') != -1:
             model = model.module
 
-        model_file = os.path.join(self.save_path, 'model_{:d}_{:d}.pth'.format(self.state['past_epochs'], self.state['past_iters']))
+        model_file = os.path.join(self.save_path, 'model_{:03d}_{:06d}.pth'.format(self.state['past_epochs'], self.state['past_iters']))
 
         checkpoint = dict()
         checkpoint['state'] = self.state
@@ -85,7 +83,7 @@ class Writer:
         if self.state['past_iters'] % self.n_iters_check_model != 0:
             return
 
-        self.records['metrics'][self.state['past_iters']] = trainer.eval(self.test_loader, torch.device('cuda'))
+        self.records['metrics'][str(self.state['past_iters']).zfill(6)] = trainer.eval(self.test_loader, torch.device('cuda'))
 
         self.save_model(trainer.get_model())
         self.save_records()

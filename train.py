@@ -42,12 +42,8 @@ class Trainer:
         self.adapter.schedule(self.writer.state)
 
         n_batches = len(data_loader)
-        n_batches = 10
 
         for i, (images, labels) in enumerate(data_loader):
-            if n_batches <= i:
-                break
-
             images = images.to(device)
             labels = labels.to(device, dtype = torch.long)
 
@@ -62,28 +58,26 @@ class Trainer:
             self.optimizer.step()
 
             self.writer.inc_iter(loss.item())
-            self.writer.check_model(self)
-
             print('\t| train Epoch[{:d}] [{:d}:{:d}]'.format(epoch, i + 1, n_batches), self.writer.get_loss())
 
+            self.writer.check_model(self)
             self.adapter.schedule(self.writer.state)
 
         self.writer.inc_epoch()
+        self.writer.save_records()
 
         print('\n=> | train Epoch[{:d}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(epoch, self.writer.get_epoch_mean(n_batches)))
 
 
     def eval(self, test_loader, device):
+        print('\t=> begins a evaluation round')
+
         self.model.eval()
         counter = Counter(self.n_classes)
 
         n_batches = len(test_loader)
-        n_batches = 10
 
         for i, (images, labels) in enumerate(test_loader):
-            if n_batches <= i:
-                break
-
             images = images.to(device)
 
             with torch.no_grad():
@@ -94,10 +88,12 @@ class Trainer:
 
             counter.update(labels, predictions)
 
-            print('\t| test Batch [{:d}:{:d}] |'.format(i + 1, n_batches))
+            print('\t\t| test Batch [{:d}:{:d}] |'.format(i + 1, n_batches))
+
+        print('\tevaluation round finishes <=')
 
         return counter.to_metrics()
 
 
     def get_model(self):
-        return self.model.module if torch.typename(model).find('DataParallel') != -1 else self.model
+        return self.model.module if torch.typename(self.model).find('DataParallel') != -1 else self.model
