@@ -29,19 +29,22 @@ model_urls = {
 
 
 def _segm_model(
-    name: str, backbone_name: str, num_classes: int, aux: Optional[bool], imagenet: bool = True
+    name: str, backbone_name: str, num_classes: int, aux_head: Optional[bool], imagenet: bool = True
 ) -> nn.Module:
     if "resnet" in backbone_name:
         backbone = resnet.__dict__[backbone_name](
-            pretrained=imagenet, replace_stride_with_dilation=[False, True, True]
+            pretrained = imagenet,
+            replace_stride_with_dilation = [False, True, True],
         )
         out_layer = "layer4"
         out_inplanes = 2048
         aux_layer = "layer3"
         aux_inplanes = 1024
     elif "mobilenet_v3" in backbone_name:
-        backbone = mobilenetv3.__dict__[backbone_name](pretrained=imagenet, dilated=True).features
-
+        backbone = mobilenetv3.__dict__[backbone_name](
+            pretrained = imagenet,
+            dilated = True
+        ).features
         # Gather the indices of blocks which are strided. These are the locations of C1, ..., Cn-1 blocks.
         # The first and last blocks are always included because they are the C0 (conv1) and Cn.
         stage_indices = [0] + [i for i, b in enumerate(backbone) if getattr(b, "_is_cn", False)] + [len(backbone) - 1]
@@ -54,13 +57,8 @@ def _segm_model(
     else:
         raise NotImplementedError("backbone {} is not supported as of now".format(backbone_name))
 
-    return_layers = {out_layer: "out"}
-    if aux:
-        return_layers[aux_layer] = "aux"
-    backbone = create_feature_extractor(backbone, return_layers)
-
     aux_classifier = None
-    if aux:
+    if aux_head:
         aux_classifier = FCNHead(aux_inplanes, num_classes)
 
     head_creator = dict(deeplabv3 = DeepLabHead, fcn = FCNHead)

@@ -168,7 +168,7 @@ class ResNet(nn.Module):
         num_classes: int = 1000,
         zero_init_residual: bool = False,
         groups: int = 1,
-        width_per_group: int = 64,
+        base_width: int = 64,
         replace_stride_with_dilation: Optional[List[bool]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
     ) -> None:
@@ -180,16 +180,11 @@ class ResNet(nn.Module):
         self.inplanes = 64
         self.dilation = 1
         if replace_stride_with_dilation is None:
-            # each element in the tuple indicates if we should replace
-            # the 2x2 stride with a dilated convolution instead
             replace_stride_with_dilation = [False, False, False]
-        if len(replace_stride_with_dilation) != 3:
-            raise ValueError(
-                "replace_stride_with_dilation should be None "
-                "or a 3-element tuple, got {}".format(replace_stride_with_dilation)
-            )
+
         self.groups = groups
-        self.base_width = width_per_group
+        self.base_width = base_width
+
         self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
@@ -260,7 +255,6 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x: Tensor) -> Tensor:
-        # See note [TorchScript super()]
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -268,14 +262,10 @@ class ResNet(nn.Module):
 
         x = self.layer1(x)
         x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        m = self.layer3(x)
+        n = self.layer4(m)
 
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.fc(x)
-
-        return x
+        return dict(out = n, aux = m)
 
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
@@ -360,7 +350,7 @@ def resnext50_32x4d(pretrained: bool = False, progress: bool = True, **kwargs: A
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     kwargs["groups"] = 32
-    kwargs["width_per_group"] = 4
+    kwargs["base_width"] = 4
     return _resnet("resnext50_32x4d", Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
 
 
@@ -373,7 +363,7 @@ def resnext101_32x8d(pretrained: bool = False, progress: bool = True, **kwargs: 
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     kwargs["groups"] = 32
-    kwargs["width_per_group"] = 8
+    kwargs["base_width"] = 8
     return _resnet("resnext101_32x8d", Bottleneck, [3, 4, 23, 3], pretrained, progress, **kwargs)
 
 
@@ -390,7 +380,7 @@ def wide_resnet50_2(pretrained: bool = False, progress: bool = True, **kwargs: A
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    kwargs["width_per_group"] = 64 * 2
+    kwargs["base_width"] = 64 * 2
     return _resnet("wide_resnet50_2", Bottleneck, [3, 4, 6, 3], pretrained, progress, **kwargs)
 
 
@@ -407,5 +397,5 @@ def wide_resnet101_2(pretrained: bool = False, progress: bool = True, **kwargs: 
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    kwargs["width_per_group"] = 64 * 2
+    kwargs["base_width"] = 64 * 2
     return _resnet("wide_resnet101_2", Bottleneck, [3, 4, 23, 3], pretrained, progress, **kwargs)

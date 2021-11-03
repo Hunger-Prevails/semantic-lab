@@ -49,7 +49,7 @@ def main():
     print('<= a writer is ready')
 
     print('\n=> prepares a trainer')
-    trainer = Trainer(args, model, writer)
+    trainer = Trainer(args, model, writer, data_loader)
     print('<= a trainer is ready')
 
     if args.test_only:
@@ -61,7 +61,7 @@ def main():
         start_epoch = writer.state['past_epochs'] + 1
 
         for epoch in range(start_epoch, args.n_epochs + 1):
-            trainer.train(epoch, data_loader, torch.device('cuda'))
+            trainer.train(epoch, torch.device('cuda'))
 
         print('<= train finishes')
 

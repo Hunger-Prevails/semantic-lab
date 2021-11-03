@@ -8,9 +8,10 @@ from metrics import ConfusionCounter as Counter
 
 class Trainer:
 
-    def __init__(self, args, model, writer):
+    def __init__(self, args, model, writer, data_loader):
         self.model = model
         self.writer = writer
+        self.data_loader = data_loader
 
         self.list_params = list(model.parameters())
 
@@ -26,7 +27,7 @@ class Trainer:
         else:
             self.optimizer = optim.Adam(self.list_params, args.learn_rate, weight_decay = args.weight_decay)
 
-        self.adapter = Adapter(args, self.optimizer)
+        self.adapter = Adapter(args, self.optimizer, len(data_loader))
 
         self.half_acc = args.half_acc
         self.n_classes = args.n_classes
@@ -37,18 +38,15 @@ class Trainer:
         self.criterion = nn.__dict__[args.criterion + 'Loss'](reduction = 'mean', ignore_index = args.n_classes).cuda()
 
 
-    def train(self, epoch, data_loader, device):
+    def train(self, epoch, device):
         self.model.train()
         self.adapter.schedule(self.writer.state)
 
-        n_batches = len(data_loader)
-
-        for i, (images, labels) in enumerate(data_loader):
+        for i, (images, labels) in enumerate(self.data_loader):
             images = images.to(device)
             labels = labels.to(device, dtype = torch.long)
 
             logits = self.model(images)
-
             loss = self.criterion(logits['out'], labels)
 
             self.optimizer.zero_grad()
@@ -58,7 +56,7 @@ class Trainer:
             self.optimizer.step()
 
             self.writer.inc_iter(loss.item())
-            print('\t| train Epoch[{:d}] [{:d}:{:d}]'.format(epoch, i + 1, n_batches), self.writer.get_loss())
+            print('\t| train Epoch[{:d}] [{:d}:{:d}]'.format(epoch, i + 1, self.adapter.n_batches), self.writer.get_loss())
 
             self.writer.check_model(self)
             self.adapter.schedule(self.writer.state)
@@ -66,13 +64,12 @@ class Trainer:
         self.writer.inc_epoch()
         self.writer.save_records()
 
-        print('\n=> | train Epoch[{:d}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(epoch, self.writer.get_epoch_mean(n_batches)))
+        print('\n=> | train Epoch[{:d}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(epoch, self.writer.get_epoch_mean(self.adapter.n_batches)))
 
 
     def eval(self, test_loader, device):
-        print('\t=> begins a evaluation round')
-
         self.model.eval()
+        print('\t=> begins a evaluation round')
         counter = Counter(self.n_classes)
 
         n_batches = len(test_loader)
@@ -91,7 +88,7 @@ class Trainer:
             print('\t\t| test Batch [{:d}:{:d}] |'.format(i + 1, n_batches))
 
         print('\tevaluation round finishes <=')
-
+        self.model.train()
         return counter.to_metrics()
 
 
