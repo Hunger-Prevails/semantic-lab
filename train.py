@@ -3,8 +3,11 @@ import torch.nn as nn
 import numpy as np
 import torch.optim as optim
 
+import criteria
+
 from adapter import Adapter
 from metrics import ConfusionCounter as Counter
+from augmentation import RandomCrop
 
 class Trainer:
 
@@ -13,6 +16,7 @@ class Trainer:
         self.writer = writer
         self.data_loader = data_loader
 
+        self.crop_func = RandomCrop(args.crop_rate)
         self.list_params = list(model.parameters())
 
         if args.half_acc:
@@ -30,12 +34,17 @@ class Trainer:
         self.adapter = Adapter(args, self.optimizer, len(data_loader))
 
         self.half_acc = args.half_acc
+        self.aux_loss = args.aux_loss
+        self.enc_crop = args.enc_crop
         self.n_classes = args.n_classes
 
         self.grad_clip_norm = args.grad_clip_norm
         self.grad_scale_factor = args.grad_scale_factor
 
-        self.criterion = nn.__dict__[args.criterion + 'Loss'](reduction = 'mean', ignore_index = args.n_classes).cuda()
+        self.criterion = nn.__dict__.get(args.criterion + 'Loss', criteria.__dict__.get(args.criterion + 'Loss'))
+
+        assert self.criterion is not None
+        self.criterion = self.criterion(reduction = 'mean', ignore_index = args.n_classes).cuda()
 
 
     def train(self, epoch, device):
@@ -43,11 +52,16 @@ class Trainer:
         self.adapter.schedule(self.writer.state)
 
         for i, (images, labels) in enumerate(self.data_loader):
+            if self.enc_crop:
+                images, labels = self.crop_func(images, labels)
+
             images = images.to(device)
             labels = labels.to(device, dtype = torch.long)
 
             logits = self.model(images)
             loss = self.criterion(logits['out'], labels)
+            if self.aux_loss:
+                loss += self.criterion(logits['aux'], labels)
 
             self.optimizer.zero_grad()
             loss.backward()

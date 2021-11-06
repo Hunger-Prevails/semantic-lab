@@ -10,6 +10,8 @@ import torch.utils.data as data
 
 from torchvision import transforms
 
+import augmentation
+
 
 def get_loader(args, phase):
     dataset = Dataset(args, phase)
@@ -41,6 +43,7 @@ class Dataset(data.Dataset):
         ]
         self.transforms = transforms.Compose(self.transforms)
 
+        self.enc_flip = args.enc_flip
         self.enc_colour = args.enc_colour
 
         print('\tcollects [', self.__len__(), ']', phase, 'samples')
@@ -53,13 +56,25 @@ class Dataset(data.Dataset):
         return samples
 
 
-    def parse_sample(self, sample):
-        image = cv2.cvtColor(cv2.imread(sample.image_path), cv2.COLOR_BGR2RGB)
-        label = np.load(sample.label_path)
+    def enrich(self, image, label):
+        if self.enc_colour:
+            image = augmentation.random_colour(image)
 
-        image = self.transforms(random_color(image) if self.enc_colour else image)
+        if self.enc_flip and np.random.rand() < 0.5:
+            image = np.flip(image, axis = 1).copy()
+            label = np.flip(label, axis = 1).copy()
 
         return image, label
+
+
+    def parse_sample(self, sample):
+        image = np.flip(cv2.imread(sample.image_path), axis = -1).copy()
+        label = np.load(sample.label_path)
+
+        if self.phase == 'train':
+            image, label = self.enrich(image, label)
+
+        return self.transforms(image), label
 
 
     def __getitem__(self, index):

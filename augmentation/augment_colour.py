@@ -3,6 +3,9 @@ import numpy as np
 import random
 
 
+__all__ = ['random_colour']
+
+
 def augment_brightness(image, space):
     if space != 'rgb':
         image = cv2.cvtColor(image, cv2.COLOR_HSV2RGB)
@@ -45,7 +48,7 @@ def augment_saturation(image, space):
     return image, 'hsv'
 
 
-def random_color(image):
+def random_colour(image):
     '''
     performs random colour augmentation for the given image
 
@@ -55,6 +58,7 @@ def random_color(image):
     dest = (image / 255.0).astype(np.float32)
 
     augment_funcs = [augment_brightness, augment_contrast, augment_hue, augment_saturation]
+    random.shuffle(augment_funcs)
 
     colorspace = 'rgb'
 

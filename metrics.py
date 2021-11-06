@@ -29,7 +29,8 @@ class ConfusionCounter(Counter):
 
 
     def fast_hist(self, label, prediction):
-        hist = np.bincount(self.n_classes * label.astype(np.int) + prediction, minlength = self.n_classes ** 2)
+        flag = label < self.n_classes
+        hist = np.bincount(self.n_classes * label[flag] + prediction[flag], None, self.n_classes ** 2)
         return hist.reshape(self.n_classes, self.n_classes)
 
 
