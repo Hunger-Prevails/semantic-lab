@@ -14,13 +14,11 @@ class Adapter:
 
 
     def on_start(self, state):
-        factor = (self.learn_rate_start - 1.0) / self.n_iters_start ** 2
-
-        return factor * min(state['past_iters'] - self.n_iters_start, 0) ** 2 + 1.0
+        raise NotImplementedError()
 
 
     def on_batch(self, state):
-        return self.learn_rate * (1 - max(state['past_iters'] - self.n_iters_start, 0) / self.n_epochs / self.n_batches) ** self.learn_rate_decay
+        raise NotImplementedError()
 
 
     def schedule(self, state):
@@ -28,3 +26,19 @@ class Adapter:
 
         for group in self.optimizer.param_groups:
             group['lr'] = current
+
+
+class PolynomAdapter(Adapter):
+
+    def __init__(self, args, optimizer, n_batches):
+        super().__init__(args, optimizer, n_batches)
+
+
+    def on_start(self, state):
+        factor = (self.learn_rate_start - 1.0) / self.n_iters_start ** 2
+
+        return factor * min(state['past_iters'] - self.n_iters_start, 0) ** 2 + 1.0
+
+
+    def on_batch(self, state):
+        return self.learn_rate * (1 - max(state['past_iters'] - self.n_iters_start, 0) / self.n_epochs / self.n_batches) ** self.learn_rate_decay

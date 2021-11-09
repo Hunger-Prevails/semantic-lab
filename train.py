@@ -3,51 +3,43 @@ import torch.nn as nn
 import numpy as np
 import torch.optim as optim
 
+import adapter
 import criteria
 
-from adapter import Adapter
-from metrics import ConfusionCounter as Counter
+from metrics import Counter
 from augmentation import RandomCrop
 
 class Trainer:
 
-    def __init__(self, args, model, writer, data_loader):
+    def __init__(self, args, model, writer):
         self.model = model
         self.writer = writer
-        self.data_loader = data_loader
 
-        self.crop_func = RandomCrop(args.crop_rate)
-        self.list_params = list(model.parameters())
-
-        if args.half_acc:
-            self.copy_params = [param.clone().detach() for param in self.list_params]
-            self.model = self.model.half()
-
-            for param in self.copy_params:
-                param.requires_grad = True
-                param.grad = param.data.new_zeros(param.size())
-
-            self.optimizer = optim.Adam(self.copy_params, args.learn_rate, weight_decay = args.weight_decay)
-        else:
-            self.optimizer = optim.Adam(self.list_params, args.learn_rate, weight_decay = args.weight_decay)
-
-        self.adapter = Adapter(args, self.optimizer, len(data_loader))
-
-        self.half_acc = args.half_acc
         self.aux_loss = args.aux_loss
         self.enc_crop = args.enc_crop
         self.n_classes = args.n_classes
 
         self.grad_clip_norm = args.grad_clip_norm
-        self.grad_scale_factor = args.grad_scale_factor
+
+
+    def set_loader(args, data_loader):
+        self.data_loader = data_loader
+
+        self.crop_func = RandomCrop(args.crop_rate)
+        self.optimizer = optim.Adam(model.parameters(), args.learn_rate, weight_decay = args.weight_decay)
+
+        self.adapter = adapter.__dict__.get(args.adapter + 'Adapter')
+        self.adapter = self.adapter(args, self.optimizer, len(data_loader))
 
         self.criterion = nn.__dict__.get(args.criterion + 'Loss', criteria.__dict__.get(args.criterion + 'Loss'))
-
-        assert self.criterion is not None
-        self.criterion = self.criterion(reduction = 'mean', ignore_index = args.n_classes).cuda()
+        self.criterion = self.criterion(ignore_index = args.n_classes).cuda()
 
 
-    def train(self, epoch, device):
+    def set_test_loader(test_loader):
+        self.test_loader = test_loader
+
+
+    def train(self, device):
         self.model.train()
         self.adapter.schedule(self.writer.state)
 
@@ -70,7 +62,7 @@ class Trainer:
             self.optimizer.step()
 
             self.writer.inc_iter(loss.item())
-            print('\t| train Epoch[{:d}] [{:d}:{:d}]'.format(epoch, i + 1, self.adapter.n_batches), self.writer.get_loss())
+            self.writer.print_iter(i, self.adapter.n_batches)
 
             self.writer.check_model(self)
             self.adapter.schedule(self.writer.state)
@@ -78,17 +70,17 @@ class Trainer:
         self.writer.inc_epoch()
         self.writer.save_records()
 
-        print('\n=> | train Epoch[{:d}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(epoch, self.writer.get_epoch_mean(self.adapter.n_batches)))
+        self.writer.print_epoch(self.adapter.n_batches)
 
 
-    def eval(self, test_loader, device):
+    def eval(self, device, save_spec = False):
         self.model.eval()
-        print('\t=> begins a evaluation round')
+        print('=> => begins a evaluation round')
         counter = Counter(self.n_classes)
 
-        n_batches = len(test_loader)
+        n_batches = len(self.test_loader)
 
-        for i, (images, labels) in enumerate(test_loader):
+        for i, (images, labels) in enumerate(self.test_loader):
             images = images.to(device)
 
             with torch.no_grad():
@@ -97,11 +89,14 @@ class Trainer:
             labels = labels.cpu().numpy()
             predictions = logits['out'].detach().cpu().numpy().argmax(axis = 1)
 
+            if save_spec:
+                self.writer.save_spec(predictions, i)
+
             counter.update(labels, predictions)
 
-            print('\t\t| test Batch [{:d}:{:d}] |'.format(i + 1, n_batches))
+            print('=> => => | test Batch [{:d}:{:d}] |'.format(i + 1, n_batches))
 
-        print('\tevaluation round finishes <=')
+        print('<= <= evaluation round finishes')
         self.model.train()
         return counter.to_metrics()
 

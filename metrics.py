@@ -1,25 +1,9 @@
 import numpy as np
 
-class Counter():
+class Counter:
 
     def __init__(self, n_classes):
         self.n_classes = n_classes
-
-
-    def update(self, gt, pred):
-        '''to override'''
-        raise NotImplementedError()
-
-
-    def to_metric(self):
-        '''to override'''
-        raise NotImplementedError()
-
-
-class ConfusionCounter(Counter):
-
-    def __init__(self, n_classes):
-        super().__init__(n_classes)
         self.confusion = np.zeros((n_classes, n_classes))
 
 

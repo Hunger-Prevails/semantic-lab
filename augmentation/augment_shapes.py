@@ -12,7 +12,7 @@ class RandomCrop:
         dest_shape (int, int): desired output shape of the crop
     """
     def __init__(self, crop_rate):
-        self.crop_rates = np.linspace(crop_rate, 1.0, num = 5)
+        self.crop_rates = np.linspace(crop_rate, 1.0, num = 6)
 
 
     def __call__(self, tensor, labels):

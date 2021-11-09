@@ -26,7 +26,6 @@ def get_loader(args, phase):
 class Dataset(data.Dataset):
 
     def __init__(self, args, phase):
-        self.phase = phase
         self.data_name = args.data_name
         self.n_classes = args.n_classes
 
@@ -43,10 +42,9 @@ class Dataset(data.Dataset):
         ]
         self.transforms = transforms.Compose(self.transforms)
 
-        self.enc_flip = args.enc_flip
-        self.enc_colour = args.enc_colour
+        self.enc_colour = args.enc_colour and phase == 'train'
 
-        print('\tcollects [', self.__len__(), ']', phase, 'samples')
+        print('=> => collects [', self.__len__(), ']', phase, 'samples')
 
 
     def get_smile_view_samples(self, phase):
@@ -56,25 +54,13 @@ class Dataset(data.Dataset):
         return samples
 
 
-    def enrich(self, image, label):
-        if self.enc_colour:
-            image = augmentation.random_colour(image)
-
-        if self.enc_flip and np.random.rand() < 0.5:
-            image = np.flip(image, axis = 1).copy()
-            label = np.flip(label, axis = 1).copy()
-
-        return image, label
-
-
     def parse_sample(self, sample):
         image = np.flip(cv2.imread(sample.image_path), axis = -1).copy()
         label = np.load(sample.label_path)
 
-        if self.phase == 'train':
-            image, label = self.enrich(image, label)
+        image = self.transforms(augmentation.random_colour(image) if self.enc_colour else image)
 
-        return self.transforms(image), label
+        return image, label
 
 
     def __getitem__(self, index):
