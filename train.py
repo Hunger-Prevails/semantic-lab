@@ -22,11 +22,11 @@ class Trainer:
         self.grad_clip_norm = args.grad_clip_norm
 
 
-    def set_loader(args, data_loader):
+    def set_loader(self, args, data_loader):
         self.data_loader = data_loader
 
         self.crop_func = RandomCrop(args.crop_rate)
-        self.optimizer = optim.Adam(model.parameters(), args.learn_rate, weight_decay = args.weight_decay)
+        self.optimizer = optim.Adam(self.model.parameters(), args.learn_rate, weight_decay = args.weight_decay)
 
         self.adapter = adapter.__dict__.get(args.adapter + 'Adapter')
         self.adapter = self.adapter(args, self.optimizer, len(data_loader))
@@ -35,7 +35,7 @@ class Trainer:
         self.criterion = self.criterion(ignore_index = args.n_classes).cuda()
 
 
-    def set_test_loader(test_loader):
+    def set_test_loader(self, test_loader):
         self.test_loader = test_loader
 
 
@@ -58,19 +58,18 @@ class Trainer:
             self.optimizer.zero_grad()
             loss.backward()
 
-            nn.utils.clip_grad_norm_(self.list_params, self.grad_clip_norm)
+            nn.utils.clip_grad_norm_(self.model.parameters(), self.grad_clip_norm)
             self.optimizer.step()
 
             self.writer.inc_iter(loss.item())
             self.writer.print_iter(i, self.adapter.n_batches)
-
             self.writer.check_model(self)
+
             self.adapter.schedule(self.writer.state)
 
-        self.writer.inc_epoch()
         self.writer.save_records()
-
         self.writer.print_epoch(self.adapter.n_batches)
+        self.writer.inc_epoch()
 
 
     def eval(self, device, save_spec = False):

@@ -1,8 +1,6 @@
 import os
 import json
 
-path = 'metadata.json'
-
 meta = dict()
 
 mean = [0.485, 0.456, 0.406]
@@ -50,10 +48,31 @@ smile_view_anno = [
     [100, 100, 100],
     [95, 95, 95],
     [90, 90, 90],
-    [85, 85, 85],
+    [85, 85, 85]
 ]
 annotation = dict(smile_view = smile_view_anno)
 meta['annotation'] = annotation
 
-with open(path, 'w') as file:
+smile_view_mirror = [
+    [ 5,  3],
+    [ 6, 19],
+    [ 7, 18],
+    [ 8, 17],
+    [ 9, 16],
+    [10, 15],
+    [11, 14],
+    [12, 13],
+    [20, 35],
+    [21, 34],
+    [22, 33],
+    [23, 32],
+    [24, 31],
+    [25, 30],
+    [26, 29],
+    [27, 28]
+]
+mirror = dict(smile_view = smile_view_mirror)
+meta['mirror'] = mirror
+
+with open('/home/yinglun.liu/Datasets/metadata.json', 'w') as file:
     file.write(json.dumps(meta))

@@ -6,6 +6,8 @@ import numpy as np
 class Writer:
 
     def __init__(self, args, state):
+        self.n_epochs = args.n_epochs
+
         self.n_iters_check_loss = args.n_iters_check_loss
         self.n_iters_check_model = args.n_iters_check_model
 
@@ -66,7 +68,7 @@ class Writer:
     def print_epoch(self, n_batches):
         epoch_mean = np.sum(self.records['losses'][- n_batches:]) / n_batches
 
-        print('\n=> | train Epoch[{:d}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(self.current_epoch(), epoch_mean))
+        print('=> | train Epoch[{:d}] finishes | Epoch-Mean: {:1.4f} <=\n'.format(self.current_epoch(), epoch_mean))
 
 
     def save_model(self, model):

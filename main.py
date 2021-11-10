@@ -65,7 +65,7 @@ def main():
         print('<= data loaders are ready')
 
         print('\n=> sets loaders')
-        trainer.set_loader(data_loader)
+        trainer.set_loader(args, data_loader)
         trainer.set_test_loader(test_loader)
         print('<= loaders are set')
 

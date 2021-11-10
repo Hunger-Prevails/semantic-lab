@@ -29,7 +29,7 @@ class Dataset(data.Dataset):
         self.data_name = args.data_name
         self.n_classes = args.n_classes
 
-        with open('metadata.json') as file:
+        with open('/home/yinglun.liu/Datasets/metadata.json') as file:
             metadata = json.load(file)
 
         self.root = metadata['root'][args.data_name]
