@@ -9,6 +9,7 @@ model_init.add_argument('-resume', action='store_true', help='whether to continu
 
 # bool options
 parser.add_argument('-shuffle', action='store_true', help='shuffle train samples at the start of each epoch')
+parser.add_argument('-attention', action='store_true', help='whether to apply attention scores on loss computation')
 parser.add_argument('-half_acc', action='store_true', help='whether to use half precision for speed-up and memory efficiency')
 parser.add_argument('-test_only', action='store_true', help='only performs test')
 parser.add_argument('-enc_crop', action='store_true', help='whether to perform random crop augmentation')

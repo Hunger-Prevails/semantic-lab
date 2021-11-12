@@ -17,6 +17,7 @@ class Trainer:
 
         self.aux_loss = args.aux_loss
         self.enc_crop = args.enc_crop
+        self.attention = args.attention
         self.n_classes = args.n_classes
 
         self.grad_clip_norm = args.grad_clip_norm
@@ -32,7 +33,7 @@ class Trainer:
         self.adapter = self.adapter(args, self.optimizer, len(data_loader))
 
         self.criterion = nn.__dict__.get(args.criterion + 'Loss', criteria.__dict__.get(args.criterion + 'Loss'))
-        self.criterion = self.criterion(ignore_index = args.n_classes).cuda()
+        self.criterion = self.criterion(reduction = 'none', ignore_index = args.n_classes).cuda()
 
 
     def set_test_loader(self, test_loader):
@@ -43,17 +44,21 @@ class Trainer:
         self.model.train()
         self.adapter.schedule(self.writer.state)
 
-        for i, (images, labels) in enumerate(self.data_loader):
+        for i, batch in enumerate(self.data_loader):
             if self.enc_crop:
-                images, labels = self.crop_func(images, labels)
+                batch['image'], batch['label'] = self.crop_func(batch['image'], batch['label'])
 
-            images = images.to(device)
-            labels = labels.to(device, dtype = torch.long)
+            batch['image'] = batch['image'].to(device)
+            batch['label'] = batch['label'].to(device, dtype = torch.long)
+            if self.attention:
+                batch['atten'] = batch['atten'].to(device)
 
-            logits = self.model(images)
-            loss = self.criterion(logits['out'], labels)
+            logits = self.model(batch['image'])
+            loss = self.criterion(logits['out'], batch['label'])
             if self.aux_loss:
-                loss += self.criterion(logits['aux'], labels)
+                loss += self.criterion(logits['aux'], batch['label'])
+
+            loss = torch.mul(loss, batch['atten']).mean() if self.attention else loss.mean()
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -79,19 +84,19 @@ class Trainer:
 
         n_batches = len(self.test_loader)
 
-        for i, (images, labels) in enumerate(self.test_loader):
-            images = images.to(device)
+        for i, batch in enumerate(self.test_loader):
+            batch['image'] = batch['image'].to(device)
 
             with torch.no_grad():
-                logits = self.model(images)
+                logits = self.model(batch['image'])
 
-            labels = labels.cpu().numpy()
+            batch['label'] = batch['label'].numpy()
             predictions = logits['out'].detach().cpu().numpy().argmax(axis = 1)
 
             if save_spec:
                 self.writer.save_spec(predictions, i)
 
-            counter.update(labels, predictions)
+            counter.update(batch['label'], predictions)
 
             print('=> => => | test Batch [{:d}:{:d}] |'.format(i + 1, n_batches))
 

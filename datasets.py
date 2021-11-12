@@ -26,7 +26,9 @@ def get_loader(args, phase):
 class Dataset(data.Dataset):
 
     def __init__(self, args, phase):
+        self.phase = phase
         self.data_name = args.data_name
+        self.attention = args.attention
         self.n_classes = args.n_classes
 
         with open('/home/yinglun.liu/Datasets/metadata.json') as file:
@@ -51,16 +53,35 @@ class Dataset(data.Dataset):
         with open(os.path.join(self.root, phase + '.pkl'), 'rb') as file:
             samples = pickle.load(file)
 
+        if phase != 'train':
+            samples = [sample for sample in samples if not sample.to_flip]
+
         return samples
 
 
+    def to_atten(self, label):
+        atten = np.ones(label.shape).astype(np.float32)
+
+        cnt_atten = (0 < label).sum()
+
+        atten[0 < label] = (label.size - cnt_atten) / cnt_atten
+        atten = np.multiply(atten, label.size / atten.sum())
+
+        return cv2.filter2D(atten, -1, np.ones((20, 20)) / 400)
+
+
     def parse_sample(self, sample):
-        image = np.flip(cv2.imread(sample.image_path), axis = -1).copy()
+        image = sample.read()
         label = np.load(sample.label_path)
 
         image = self.transforms(augmentation.random_colour(image) if self.enc_colour else image)
 
-        return image, label
+        ret = dict(image = image, label = label)
+
+        if self.attention and self.phase == 'train':
+            ret['atten'] = self.to_atten(label)
+
+        return ret
 
 
     def __getitem__(self, index):

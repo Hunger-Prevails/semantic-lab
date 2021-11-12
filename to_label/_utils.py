@@ -1,5 +1,7 @@
 import os
 import sys
+import cv2
+import numpy as np
 
 class Sample:
     def __init__(self, image_path, label_path, to_flip = False):
@@ -17,3 +19,8 @@ class Sample:
         self.to_flip = to_flip
         self.image_path = image_path
         self.label_path = label_path
+
+    def read(self):
+        image = np.flip(cv2.imread(self.image_path), axis = -1)
+
+        return np.flip(image, axis = 1).copy() if self.to_flip else image.copy()
