@@ -42,7 +42,7 @@ parser.add_argument('-stride', default=16, type=int, help='stride of network for
 parser.add_argument('-learn_rate', default=1e-2, type=float, help='base learn rate')
 parser.add_argument('-learn_rate_start', default=0.1, type=float, help='start learn rate')
 parser.add_argument('-learn_rate_decay', default=0.6, type=float, help='learn rate decay for polynomial schedule')
-parser.add_argument('-learn_rate_bottom', default=1e-5, type=float, help='bottom learn rate')
+parser.add_argument('-learn_rate_haven', default=1e-5, type=float, help='bottom learn rate')
 
 # float options
 parser.add_argument('-crop_rate', default=0.8, type=float, help='boundary crop rate for random crop')
