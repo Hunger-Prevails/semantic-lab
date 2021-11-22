@@ -78,21 +78,34 @@ def _load_weights(model: nn.Module, arch_type: str, backbone: str, progress: boo
 
     assert arch in model_urls
 
-    state_dict = load_url(model_urls.get(arch), progress = progress)
-    model_dict = model.state_dict()
-        
-    keys = list(state_dict.keys())
+    fetch_dict = load_url(model_urls.get(arch), progress = progress)
+    state_dict = model.state_dict()
 
-    for key in keys:
-        if key not in model_dict:
-            print('\tkey [', key, '] deleted due to redundancy')
-            del state_dict[key]
-        elif state_dict.get(key).size() != model_dict.get(key).size():
-            print('\tkey [', key, '] deleted due to shape mismatch')
-            del state_dict[key]
+    fetch_keys = set(fetch_dict.keys())
+    state_keys = set(state_dict.keys())
 
-    model_dict.update(state_dict)
-    model.load_state_dict(model_dict)
+    for key in fetch_keys:
+        state_key = key.replace('backbone', 'backbone.features')
+
+        if key in state_dict and fetch_dict.get(key).size() != state_dict.get(key).size():
+            print('=> => fetch key [', key, '] deleted due to shape mismatch')
+            fetch_dict.pop(key)
+        elif key in state_dict:
+            pass
+        elif state_key in state_dict and fetch_dict.get(key).size() != state_dict.get(state_key).size():
+            print('=> => fetch key [', key, '] deleted due to shape mismatch')
+            fetch_dict.pop(key)
+        elif state_key in state_dict:
+            fetch_dict[state_key] = fetch_dict.pop(key)
+        else:
+            print('=> => fetch key [', key, '] deleted due to redundancy')
+            fetch_dict.pop(key)
+
+    for state_key in state_keys.difference(set(fetch_dict.keys())):
+        print('=> => state key [', state_key, '] untended')
+
+    state_dict.update(fetch_dict)
+    model.load_state_dict(state_dict)
 
 
 def fcn_resnet50(

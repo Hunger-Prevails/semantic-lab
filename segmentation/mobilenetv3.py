@@ -59,8 +59,6 @@ class Funnelexit(nn.Module):
         if not (1 <= config.stride <= 2):
             raise ValueError('illegal stride value')
 
-        print('creates', self.__class__.__name__, 'of stride', config.stride, 'and dilation', config.dilation)
-
         self.use_res_connect = config.stride == 1 and config.input_channels == config.out_channels
 
         layers: List[nn.Module] = []
