@@ -1,10 +1,8 @@
-from typing import Any, Optional
-
 from torch import nn
 
 from torch.utils.model_zoo import load_url
 from . import resnet
-from .feature_extraction import create_feature_extractor
+from . import mobilenetv3
 from .deeplabv3 import DeepLabHead
 from .fcn import FCNHead
 from ._utils import SegmentationModel
@@ -29,29 +27,22 @@ model_urls = {
 
 
 def _segm_model(
-    name: str, backbone_name: str, num_classes: int, aux_head: Optional[bool], imagenet: bool = True
+    name: str, backbone_name: str, num_classes: int, aux_head: bool = False, imagenet: bool = True
 ) -> nn.Module:
     if 'resnet' in backbone_name:
         backbone = resnet.__dict__[backbone_name](
-            pretrained = imagenet,
-            stride_to_dilation = [False, True, True],
+            pretrain = imagenet,
+            stride_to_dilation = [False, True, True]
         )
         out_inplanes = 2048
         aux_inplanes = 1024
     elif 'mobilenet_v3' in backbone_name:
         backbone = mobilenetv3.__dict__[backbone_name](
-            pretrained = imagenet,
-            dilated = True
+            pretrain = imagenet,
+            stride_to_dilation = [False, False, True, True]
         )
-        # Gather the indices of blocks which are strided. These are the locations of C1, ..., Cn-1 blocks.
-        # The first and last blocks are always included because they are the C0 (conv1) and Cn.
-        stage_indices = [0] + [i for i, b in enumerate(backbone) if getattr(b, '_is_cn', False)] + [len(backbone) - 1]
-        out_pos = stage_indices[-1]  # use C5 which has output_stride = 16
-        out_layer = str(out_pos)
-        out_inplanes = backbone[out_pos].out_channels
-        aux_pos = stage_indices[-4]  # use C2 here which has output_stride = 8
-        aux_layer = str(aux_pos)
-        aux_inplanes = backbone[aux_pos].out_channels
+        out_inplanes = 960
+        aux_inplanes = 160
     else:
         raise NotImplementedError('backbone {} is not supported as of now'.format(backbone_name))
 
@@ -68,16 +59,16 @@ def _segm_model(
 def _load_model(
     arch_type: str,
     backbone: str,
-    pretrained: bool,
+    pretrain: bool,
     progress: bool,
     num_classes: int,
-    aux_loss: Optional[bool],
+    aux_loss: bool = False,
 ) -> nn.Module:
     '''
     constructs a segmentation model and optionally loads the coco pre-trains
     '''
-    model = _segm_model(arch_type, backbone, num_classes, aux_loss, not pretrained)
-    if pretrained:
+    model = _segm_model(arch_type, backbone, num_classes, aux_loss, not pretrain)
+    if pretrain:
         _load_weights(model, arch_type, backbone, progress)
     return model
 
@@ -105,90 +96,90 @@ def _load_weights(model: nn.Module, arch_type: str, backbone: str, progress: boo
 
 
 def fcn_resnet50(
-    pretrained: bool = False,
+    pretrain: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = False,
+    aux_loss: bool = False,
 ) -> nn.Module:
     '''Constructs a Fully-Convolutional Network model with a ResNet-50 backbone.
 
     Args:
-        pretrained (bool): If True, returns a model pre-trained on COCO train2017 which
+        pretrain (bool): If True, returns a model pre-trained on COCO train2017 which
             contains the same classes as Pascal VOC
         progress (bool): If True, displays a progress bar of the download to stderr
         num_classes (int): number of output classes of the model (including the background)
         aux_loss (bool): If True, it uses an auxiliary loss
     '''
-    return _load_model('fcn', 'resnet50', pretrained, progress, num_classes, aux_loss)
+    return _load_model('fcn', 'resnet50', pretrain, progress, num_classes, aux_loss)
 
 
 def fcn_resnet101(
-    pretrained: bool = False,
+    pretrain: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = False,
+    aux_loss: bool = False,
 ) -> nn.Module:
     '''Constructs a Fully-Convolutional Network model with a ResNet-101 backbone.
 
     Args:
-        pretrained (bool): If True, returns a model pre-trained on COCO train2017 which
+        pretrain (bool): If True, returns a model pre-trained on COCO train2017 which
             contains the same classes as Pascal VOC
         progress (bool): If True, displays a progress bar of the download to stderr
         num_classes (int): number of output classes of the model (including the background)
         aux_loss (bool): If True, it uses an auxiliary loss
     '''
-    return _load_model('fcn', 'resnet101', pretrained, progress, num_classes, aux_loss)
+    return _load_model('fcn', 'resnet101', pretrain, progress, num_classes, aux_loss)
 
 
 def deeplabv3_resnet50(
-    pretrained: bool = False,
+    pretrain: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = False,
+    aux_loss: bool = False,
 ) -> nn.Module:
     '''Constructs a DeepLabV3 model with a ResNet-50 backbone.
 
     Args:
-        pretrained (bool): If True, returns a model pre-trained on COCO train2017 which
+        pretrain (bool): If True, returns a model pre-trained on COCO train2017 which
             contains the same classes as Pascal VOC
         progress (bool): If True, displays a progress bar of the download to stderr
         num_classes (int): number of output classes of the model (including the background)
         aux_loss (bool): If True, it uses an auxiliary loss
     '''
-    return _load_model('deeplabv3', 'resnet50', pretrained, progress, num_classes, aux_loss)
+    return _load_model('deeplabv3', 'resnet50', pretrain, progress, num_classes, aux_loss)
 
 
 def deeplabv3_resnet101(
-    pretrained: bool = False,
+    pretrain: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = False,
+    aux_loss: bool = False,
 ) -> nn.Module:
     '''Constructs a DeepLabV3 model with a ResNet-101 backbone.
 
     Args:
-        pretrained (bool): If True, returns a model pre-trained on COCO train2017 which
+        pretrain (bool): If True, returns a model pre-trained on COCO train2017 which
             contains the same classes as Pascal VOC
         progress (bool): If True, displays a progress bar of the download to stderr
         num_classes (int): The number of classes
         aux_loss (bool): If True, include an auxiliary classifier
     '''
-    return _load_model('deeplabv3', 'resnet101', pretrained, progress, num_classes, aux_loss)
+    return _load_model('deeplabv3', 'resnet101', pretrain, progress, num_classes, aux_loss)
 
 
 def deeplabv3_mobilenet_v3_large(
-    pretrained: bool = False,
+    pretrain: bool = False,
     progress: bool = True,
     num_classes: int = 21,
-    aux_loss: Optional[bool] = False,
+    aux_loss: bool = False,
 ) -> nn.Module:
     '''Constructs a DeepLabV3 model with a MobileNetV3-Large backbone.
 
     Args:
-        pretrained (bool): If True, returns a model pre-trained on COCO train2017 which
+        pretrain (bool): If True, returns a model pre-trained on COCO train2017 which
             contains the same classes as Pascal VOC
         progress (bool): If True, displays a progress bar of the download to stderr
         num_classes (int): number of output classes of the model (including the background)
         aux_loss (bool): If True, it uses an auxiliary loss
     '''
-    return _load_model('deeplabv3', 'mobilenet_v3_large', pretrained, progress, num_classes, aux_loss)
+    return _load_model('deeplabv3', 'mobilenet_v3_large', pretrain, progress, num_classes, aux_loss)
