@@ -12,20 +12,26 @@ class FakeArgs:
 
 
 def create_model(fargs, model_path):
-
+    print('=> loads checkpoint')
     model_name = fargs.head + '_' + fargs.backbone
 
     assert hasattr(segmentation, model_name)
     model = getattr(segmentation, model_name)(True, True, fargs.n_classes, fargs.aux_loss)
 
-    checkpoint = torch.load(model_path)
+    fetch_dict = torch.load(model_path)['model']
+    state_dict = model.state_dict()
 
-    state_keys = set(model.state_dict().keys())
-    fetch_keys = set(checkpoint['model'].keys())
+    fetch_keys = set(fetch_dict.keys())
+    state_keys = set(state_dict.keys())
 
-    assert not state_keys.difference(fetch_keys)
-    assert not fetch_keys.difference(state_keys)
+    for key in fetch_keys.difference(state_keys):
+        print('=> => fetch key [', key, '] deleted due to redundancy')
+        fetch_dict.pop(key)
 
-    model.load_state_dict(checkpoint['model'])
+    for state_key in state_keys.difference(set(fetch_dict.keys())):
+        print('=> => state key [', state_key, '] untended')
+
+    state_dict.update(fetch_dict)
+    model.load_state_dict(state_dict)
 
     return model.cuda()

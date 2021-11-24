@@ -4,8 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+import torch
 from torchvision import transforms
 
+import json
 import utils
 
 def detect_jaws(image, cascade_path):
@@ -32,7 +34,7 @@ def crop_jaws(image, jaws_bbox):
 	return image[jaws_bbox[1]:jaws_bbox[1] + jaws_bbox[3], jaws_bbox[0]:jaws_bbox[0] + jaws_bbox[2]].copy()
 
 
-def detect_teeth(image, model_path):
+def detect_teeth(image, model_path, metadata):
 	fargs = utils.FakeArgs()
 	model = utils.create_model(fargs, model_path)
 	model.eval()
@@ -46,7 +48,7 @@ def detect_teeth(image, model_path):
 	tensor = torch.unsqueeze(image_transforms(image), dim = 0).cuda()
 
 	with torch.no_grad():
-		logits = self.model(tensor)
+		logits = model(tensor)
 
 	return logits['out'].detach().cpu().numpy().argmax(axis = 1).squeeze()
 
@@ -58,18 +60,18 @@ def to_label_image(label, annotation):
 
 
 def main(image_path, cascade_path, model_path):
+	with open('res/metadata.json') as file:
+		metadata = json.load(file)
+
+	annotation = metadata['annotation']['smile_view']
+
 	srce_image = cv2.imread(image_path)
 	dest_image = np.flip(srce_image, axis = -1).copy()
 
 	face_bbox, jaws_bbox = detect_jaws(srce_image, cascade_path)
 
 	jaws_image = crop_jaws(dest_image, jaws_bbox)
-	mask_image = detect_teeth(jaws_image, model_path)
-
-	with open('/home/yinglun.liu/Datasets/metadata.json') as file:
-		metadata = json.load(file)
-
-	annotation = metadata['annotation']['smile_view']
+	mask_image = detect_teeth(jaws_image, model_path, metadata)
 
 	plt.figure(figsize = (12, 8))
 
