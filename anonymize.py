@@ -1,56 +1,13 @@
+import os
 import sys
 import cv2
+import glob
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-import torch
-from torchvision import transforms
-
-import json
 import utils
-
-def detect_jaws(image, cascade_path):
-	faceCascade = cv2.CascadeClassifier(cascade_path)
-	bboxes = faceCascade.detectMultiScale(image, minSize = (40, 40))
-	bboxes = np.array(bboxes)
-
-	areas = np.multiply(bboxes[:, 2], bboxes[:, 3])
-
-	face_bbox = bboxes[np.argmax(areas)]
-
-	border_t = face_bbox[1] + face_bbox[3] // 2 + face_bbox[3] // 8
-	border_b = face_bbox[1] + face_bbox[3]
-
-	border_l = face_bbox[0] + face_bbox[2] // 6
-	border_r = face_bbox[0] + face_bbox[2] - face_bbox[2] // 6
-
-	jaws_bbox = np.array([border_l, border_t, border_r - border_l, border_b - border_t])
-
-	return face_bbox, jaws_bbox
-
-
-def crop_jaws(image, jaws_bbox):
-	return image[jaws_bbox[1]:jaws_bbox[1] + jaws_bbox[3], jaws_bbox[0]:jaws_bbox[0] + jaws_bbox[2]].copy()
-
-
-def detect_teeth(image, model_path, metadata):
-	fargs = utils.FakeArgs()
-	model = utils.create_model(fargs, model_path)
-	model.eval()
-
-	image_transforms = [
-		transforms.ToTensor(),
-		transforms.Normalize(mean = metadata['mean'], std = metadata['stddvn'])
-	]
-	image_transforms = transforms.Compose(image_transforms)
-
-	tensor = torch.unsqueeze(image_transforms(image), dim = 0).cuda()
-
-	with torch.no_grad():
-		logits = model(tensor)
-
-	return logits['out'].detach().cpu().numpy().argmax(axis = 1).squeeze()
 
 
 def to_label_image(label, annotation):
@@ -59,21 +16,26 @@ def to_label_image(label, annotation):
 	return label_image.reshape(dest_shape).astype(np.uint8)
 
 
-def main(image_path, cascade_path, model_path, dest_path):
-	with open('res/metadata.json') as file:
-		metadata = json.load(file)
-
-	annotation = metadata['annotation']['smile_view']
-
-	srce_image = cv2.imread(image_path)
+def anonymize(metadata, face_cascade, model, image_file, dest_file):
+	print('=> => anonymizes image:', image_file)
+	srce_image = cv2.imread(image_file)
 	dest_image = np.flip(srce_image, axis = -1).copy()
 
-	face_bbox, jaws_bbox = detect_jaws(srce_image, cascade_path)
+	try:
+		face_bbox, jaws_bbox = utils.detect_jaws(srce_image, face_cascade)
+	except:
+		print('=> => => detector fails on image:', image_file)
+		print('=> => => skips this image')
+		return
 
-	jaws_image = crop_jaws(dest_image, jaws_bbox)
-	mask_image = detect_teeth(jaws_image, model_path, metadata)
+	jaws_image = utils.crop_jaws(dest_image, jaws_bbox)
+	mask_image = utils.detect_teeth(jaws_image, model, metadata)
 
-	y_coord = utils.get_y_coord(jaws_bbox, mask_image, len(annotation))
+	annotation = metadata['annotation']['smile_view']
+	try:
+		y_coord = utils.get_y_coord(jaws_bbox, mask_image, len(annotation))
+	except:
+		y_coord = jaws_bbox[1]
 
 	plt.figure(figsize = (16, 8))
 
@@ -94,8 +56,30 @@ def main(image_path, cascade_path, model_path, dest_path):
 	ax.imshow(dest_image)
 	ax.axhline(y = y_coord, color = 'g')
 
-	plt.savefig(dest_path)
+	plt.savefig(dest_file)
+	plt.close()
 
+
+def main(model_path, image_path, dest_path):
+	with open('res/metadata.json') as file:
+		metadata = json.load(file)
+
+	face_cascade = cv2.CascadeClassifier('res/haarcascade.xml')
+
+	fargs = utils.FakeArgs()
+	model = utils.create_model(fargs, model_path)
+
+	image_files = glob.glob(os.path.join(image_path, '*.png'))
+	image_files.sort()
+
+	dest_files = [os.path.join(dest_path, os.path.basename(image_file)) for image_file in image_files]
+
+	print('=> anonimization starts')
+
+	for image_file, dest_file in zip(image_files, dest_files):
+		anonymize(metadata, face_cascade, model, image_file, dest_file)
+
+	print('<= anonimization finishes')
 
 if __name__ == '__main__':
-	main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+	main(sys.argv[1], sys.argv[2], sys.argv[3])
