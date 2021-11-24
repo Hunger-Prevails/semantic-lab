@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import segmentation
 
 
@@ -35,3 +36,31 @@ def create_model(fargs, model_path):
     model.load_state_dict(state_dict)
 
     return model.cuda()
+
+
+def fetch_mark(label, w_coord, n_classes, vert_mass):
+    h_coords = np.where(np.logical_and(0 < label[:, w_coord], label[:, w_coord] < n_classes))[0]
+    return [np.amin(h_coords) - vert_mass, np.amax(h_coords) - vert_mass]
+
+
+def fetch_rect(label, n_classes):
+    h_coords, w_coords = np.where(np.logical_and(0 < label, label < n_classes))
+
+    vert_mass = np.mean(h_coords)
+
+    l_bound, r_bound = np.amin(w_coords), np.amax(w_coords)
+
+    w_range = np.linspace(l_bound, r_bound, num = 9).astype(int)[1:-1]
+
+    shape_marks = [fetch_mark(label, w_coord, n_classes, vert_mass) for w_coord in w_range]
+    shape_marks = np.stack(shape_marks).flatten().tolist()
+
+    return np.array(shape_marks + [r_bound - l_bound, 1]), vert_mass
+
+
+def get_y_coord(jaws_bbox, label, n_classes):
+    weights = np.load('res/weights.npy')
+
+    shape_marks, vert_mass = fetch_rect(label, n_classes)
+
+    return vert_mass - np.dot(shape_marks, weights) + jaws_bbox[1]

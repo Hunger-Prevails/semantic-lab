@@ -59,7 +59,7 @@ def to_label_image(label, annotation):
 	return label_image.reshape(dest_shape).astype(np.uint8)
 
 
-def main(image_path, cascade_path, model_path):
+def main(image_path, cascade_path, model_path, dest_path):
 	with open('res/metadata.json') as file:
 		metadata = json.load(file)
 
@@ -73,21 +73,29 @@ def main(image_path, cascade_path, model_path):
 	jaws_image = crop_jaws(dest_image, jaws_bbox)
 	mask_image = detect_teeth(jaws_image, model_path, metadata)
 
-	plt.figure(figsize = (12, 8))
+	y_coord = utils.get_y_coord(jaws_bbox, mask_image, len(annotation))
 
-	ax = plt.subplot(1, 3, 1)
+	plt.figure(figsize = (16, 8))
+
+	ax = plt.subplot(1, 4, 1)
 	ax.imshow(dest_image)
 	rect = patches.Rectangle((face_bbox[0], face_bbox[1]), face_bbox[2], face_bbox[3], linewidth = 2, edgecolor = 'r', facecolor = 'none')
 	ax.add_patch(rect)
+	rect = patches.Rectangle((jaws_bbox[0], jaws_bbox[1]), jaws_bbox[2], jaws_bbox[3], linewidth = 2, edgecolor = 'b', facecolor = 'none')
+	ax.add_patch(rect)
 
-	ax = plt.subplot(1, 3, 2)
+	ax = plt.subplot(1, 4, 2)
 	ax.imshow(jaws_image)
 
-	ax = plt.subplot(1, 3, 3)
+	ax = plt.subplot(1, 4, 3)
 	ax.imshow(to_label_image(mask_image, annotation))
 
-	plt.savefig('anonymous.png')
+	ax = plt.subplot(1, 4, 4)
+	ax.imshow(dest_image)
+	ax.axhline(y = y_coord, color = 'g')
+
+	plt.savefig(dest_path)
 
 
 if __name__ == '__main__':
-	main(sys.argv[1], sys.argv[2], sys.argv[3])
+	main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
