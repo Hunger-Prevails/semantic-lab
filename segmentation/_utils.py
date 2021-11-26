@@ -1,12 +1,13 @@
-from collections import OrderedDict
+from enum import Enum
 from typing import Optional, Dict
+from collections import OrderedDict
 
 from torch import nn, Tensor
 from torch.nn import functional as F
 
 
 class SegmentationModel(nn.Module):
-    __constants__ = ["aux_classifier"]
+    __constants__ = ['aux_classifier']
 
     def __init__(self, backbone: nn.Module, classifier: nn.Module, aux_classifier: Optional[nn.Module] = None) -> None:
         super().__init__()
@@ -19,15 +20,18 @@ class SegmentationModel(nn.Module):
         features = self.backbone(x)
 
         result = OrderedDict()
-        x = features["out"]
+        x = features['out']
         x = self.classifier(x)
-        x = F.interpolate(x, size=input_shape, mode="bilinear", align_corners=False)
-        result["out"] = x
+        x = F.interpolate(x, size=input_shape, mode='bilinear', align_corners=False)
+        result['out'] = x
 
         if self.aux_classifier is not None:
-            x = features["aux"]
+            x = features['aux']
             x = self.aux_classifier(x)
-            x = F.interpolate(x, size=input_shape, mode="bilinear", align_corners=False)
-            result["aux"] = x
+            x = F.interpolate(x, size=input_shape, mode='bilinear', align_corners=False)
+            result['aux'] = x
 
         return result
+
+
+Init = Enum('Init', 'NONE COCO IMAGENET')

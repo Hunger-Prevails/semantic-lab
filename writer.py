@@ -96,7 +96,7 @@ class Writer:
     def save_configs(self, args):
         configs_path = os.path.join(self.save_path, 'configs.json')
         with open(configs_path, 'w') as file:
-            file.write(json.dumps(vars(args)))
+            file.write(json.dumps(vars(args), default = lambda init: init.name))
 
 
     def check_model(self, trainer):

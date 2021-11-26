@@ -6,7 +6,7 @@ from . import mobilenetv3
 from .deeplabv3 import DeepLabHead
 from .fcn import FCNHead
 from ._utils import SegmentationModel
-
+from ._utils import Init
 
 __all__ = [
     'fcn_resnet50',
@@ -26,19 +26,19 @@ model_urls = {
 }
 
 
-def _segm_model(
-    name: str, backbone_name: str, num_classes: int, aux_head: bool = False, imagenet: bool = True
+def backbone_to_head(
+    name: str, backbone_name: str, num_classes: int, aux_head: bool = False, pretrain: bool = True
 ) -> nn.Module:
     if 'resnet' in backbone_name:
         backbone = resnet.__dict__[backbone_name](
-            pretrain = imagenet,
+            pretrain = pretrain,
             stride_to_dilation = [False, True, True]
         )
         out_inplanes = 2048
         aux_inplanes = 1024
     elif 'mobilenet_v3' in backbone_name:
         backbone = mobilenetv3.__dict__[backbone_name](
-            pretrain = imagenet,
+            pretrain = pretrain,
             stride_to_dilation = [False, False, True, True]
         )
         out_inplanes = 960
@@ -59,7 +59,7 @@ def _segm_model(
 def _load_model(
     arch_type: str,
     backbone: str,
-    pretrain: bool,
+    pretrain: Init,
     progress: bool,
     num_classes: int,
     aux_loss: bool = False,
@@ -67,13 +67,17 @@ def _load_model(
     '''
     constructs a segmentation model and optionally loads the coco pre-trains
     '''
-    model = _segm_model(arch_type, backbone, num_classes, aux_loss, not pretrain)
-    if pretrain:
-        _load_weights(model, arch_type, backbone, progress)
+    if pretrain is Init.COCO:
+        model = backbone_to_head(arch_type, backbone, num_classes, aux_loss, False)
+        load_pretrain(model, arch_type, backbone, progress)
+    elif pretrain is Init.IMAGENET:
+        model = backbone_to_head(arch_type, backbone, num_classes, aux_loss, True)
+    else:
+        model = backbone_to_head(arch_type, backbone, num_classes, aux_loss, False)
     return model
 
 
-def _load_weights(model: nn.Module, arch_type: str, backbone: str, progress: bool) -> None:
+def load_pretrain(model: nn.Module, arch_type: str, backbone: str, progress: bool) -> None:
     arch = arch_type + '_' + backbone + '_coco'
 
     assert arch in model_urls
@@ -109,7 +113,7 @@ def _load_weights(model: nn.Module, arch_type: str, backbone: str, progress: boo
 
 
 def fcn_resnet50(
-    pretrain: bool = False,
+    pretrain: Init = Init.IMAGENET,
     progress: bool = True,
     num_classes: int = 21,
     aux_loss: bool = False,
@@ -127,7 +131,7 @@ def fcn_resnet50(
 
 
 def fcn_resnet101(
-    pretrain: bool = False,
+    pretrain: Init = Init.IMAGENET,
     progress: bool = True,
     num_classes: int = 21,
     aux_loss: bool = False,
@@ -145,7 +149,7 @@ def fcn_resnet101(
 
 
 def deeplabv3_resnet50(
-    pretrain: bool = False,
+    pretrain: Init = Init.IMAGENET,
     progress: bool = True,
     num_classes: int = 21,
     aux_loss: bool = False,
@@ -163,7 +167,7 @@ def deeplabv3_resnet50(
 
 
 def deeplabv3_resnet101(
-    pretrain: bool = False,
+    pretrain: Init = Init.IMAGENET,
     progress: bool = True,
     num_classes: int = 21,
     aux_loss: bool = False,
@@ -181,7 +185,7 @@ def deeplabv3_resnet101(
 
 
 def deeplabv3_mobilenet_v3_large(
-    pretrain: bool = False,
+    pretrain: Init = Init.IMAGENET,
     progress: bool = True,
     num_classes: int = 21,
     aux_loss: bool = False,
