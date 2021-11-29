@@ -10,7 +10,7 @@ stddvn = [0.229, 0.224, 0.225]
 meta['stddvn'] = stddvn
 
 root = dict(
-    smile_view = '/home/yinglun.liu/Datasets/SmileView',
+    smile_view = '/home/yinglun.liu/Datasets/smile_view',
     smile_view_broken = '/home/yinglun.liu/Datasets/SmileViewBroken'
 )
 meta['root'] = root

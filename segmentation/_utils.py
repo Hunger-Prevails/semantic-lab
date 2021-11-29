@@ -6,7 +6,7 @@ from collections import OrderedDict
 from torch import nn, Tensor
 from torch.nn import functional as F
 
-from _misc import FSConvNormActivation as FSCLayer
+from ._misc import FSConvNormActivation as FSCLayer
 
 
 class Segmentation(nn.Module):
@@ -51,7 +51,7 @@ class Segmentation(nn.Module):
 
 class StrideLifter(nn.Sequential):
     def __init__(self, inplanes, size_lifter):
-        layers = [FSCLayer(inplanes, inplanes, 3, stride = 2) for i in range(size_lifter)]
+        layers = [FSCLayer(inplanes, inplanes, 4, stride = 2) for i in range(size_lifter)]
         super().__init__(*layers)
 
         for m in self.modules():

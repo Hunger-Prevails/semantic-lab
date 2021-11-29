@@ -7,8 +7,8 @@ import torch
 from torch import nn, Tensor
 from torch.utils.model_zoo import load_url
 
-from .misc import SqueezeExcitation as SELayer
-from .misc import ConvNormActivation as CNALayer
+from ._misc import SqueezeExcitation as SELayer
+from ._misc import ConvNormActivation as CNALayer
 
 
 __all__ = ['MobileNetV3', 'mobilenet_v3_large', 'mobilenet_v3_small']

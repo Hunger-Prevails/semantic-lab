@@ -107,11 +107,12 @@ class FSConvNormActivation(torch.nn.Sequential):
         inplace: bool = True
     ) -> None:
         layers = [
-            torch.nn.Conv2d(
+            torch.nn.ConvTranspose2d(
                 in_channels,
                 out_channels,
                 kernel_size,
-                stride = stride,
+                stride,
+                np.multiply((kernel_size - 1) // 2, dilation),
                 dilation = dilation,
                 groups = groups,
             )
