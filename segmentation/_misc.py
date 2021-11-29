@@ -1,50 +1,9 @@
-"""
-helper class that supports empty tensors on some nn functions.
-
-Ideally, add support directly in PyTorch to empty tensors in
-those functions.
-
-This can be removed once https://github.com/pytorch/pytorch/issues/12013
-is implemented
-"""
+import numpy as np
 import warnings
 from typing import Callable, List, Optional
 
 import torch
 from torch import Tensor
-
-
-class Conv2d(torch.nn.Conv2d):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        warnings.warn(
-            "torchvision.ops.misc.Conv2d is deprecated and will be "
-            "removed in future versions, use torch.nn.Conv2d instead.",
-            FutureWarning,
-        )
-
-
-class ConvTranspose2d(torch.nn.ConvTranspose2d):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        warnings.warn(
-            "torchvision.ops.misc.ConvTranspose2d is deprecated and will be "
-            "removed in future versions, use torch.nn.ConvTranspose2d instead.",
-            FutureWarning,
-        )
-
-
-class BatchNorm2d(torch.nn.BatchNorm2d):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        warnings.warn(
-            "torchvision.ops.misc.BatchNorm2d is deprecated and will be "
-            "removed in future versions, use torch.nn.BatchNorm2d instead.",
-            FutureWarning,
-        )
-
-
-interpolate = torch.nn.functional.interpolate
 
 
 class FrozenBatchNorm2d(torch.nn.Module):
@@ -108,33 +67,61 @@ class ConvNormActivation(torch.nn.Sequential):
         out_channels: int,
         kernel_size: int = 3,
         stride: int = 1,
-        padding: Optional[int] = None,
+        dilation: int = 1,
         groups: int = 1,
         norm_layer: Optional[Callable[..., torch.nn.Module]] = torch.nn.BatchNorm2d,
         activation_layer: Optional[Callable[..., torch.nn.Module]] = torch.nn.ReLU,
-        dilation: int = 1,
-        inplace: bool = True,
+        inplace: bool = True
     ) -> None:
-        if padding is None:
-            padding = (kernel_size - 1) // 2 * dilation
         layers = [
             torch.nn.Conv2d(
                 in_channels,
                 out_channels,
                 kernel_size,
                 stride,
-                padding,
-                dilation=dilation,
-                groups=groups,
-                bias=norm_layer is None,
+                np.multiply((kernel_size - 1) // 2, dilation),
+                dilation = dilation,
+                groups = groups,
+                bias = norm_layer is None
             )
         ]
         if norm_layer is not None:
             layers.append(norm_layer(out_channels))
         if activation_layer is not None:
-            layers.append(activation_layer(inplace=inplace))
+            layers.append(activation_layer(inplace = inplace))
+
         super().__init__(*layers)
-        self.out_channels = out_channels
+
+
+class FSConvNormActivation(torch.nn.Sequential):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        dilation: int = 1,
+        groups: int = 1,
+        norm_layer: Optional[Callable[..., torch.nn.Module]] = torch.nn.BatchNorm2d,
+        activation_layer: Optional[Callable[..., torch.nn.Module]] = torch.nn.Hardswish,
+        inplace: bool = True
+    ) -> None:
+        layers = [
+            torch.nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size,
+                stride = stride,
+                dilation = dilation,
+                groups = groups,
+            )
+        ]
+        if norm_layer is not None:
+            layers.append(norm_layer(out_channels))
+        if activation_layer is not None:
+            layers.append(activation_layer(inplace = inplace))
+
+        super().__init__(*layers)
 
 
 class SqueezeExcitation(torch.nn.Module):

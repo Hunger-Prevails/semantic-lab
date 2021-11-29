@@ -9,7 +9,10 @@ meta['mean'] = mean
 stddvn = [0.229, 0.224, 0.225]
 meta['stddvn'] = stddvn
 
-root = dict(smile_view = '/home/yinglun.liu/Datasets/smile_view')
+root = dict(
+    smile_view = '/home/yinglun.liu/Datasets/SmileView',
+    smile_view_broken = '/home/yinglun.liu/Datasets/SmileViewBroken'
+)
 meta['root'] = root
 
 smile_view_anno = [
@@ -50,7 +53,7 @@ smile_view_anno = [
     [90, 90, 90],
     [85, 85, 85]
 ]
-annotation = dict(smile_view = smile_view_anno)
+annotation = dict(smile_view = smile_view_anno, smile_view_broken = smile_view_anno)
 meta['annotation'] = annotation
 
 smile_view_mirror = [
@@ -71,7 +74,7 @@ smile_view_mirror = [
     [26, 29],
     [27, 28]
 ]
-mirror = dict(smile_view = smile_view_mirror)
+mirror = dict(smile_view = smile_view_mirror, smile_view_broken = smile_view_mirror)
 meta['mirror'] = mirror
 
 with open('/home/yinglun.liu/Datasets/metadata.json', 'w') as file:

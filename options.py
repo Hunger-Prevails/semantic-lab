@@ -17,6 +17,7 @@ parser.add_argument('-attention', action='store_true', help='whether to apply at
 parser.add_argument('-save_spec', action='store_true', help='whether to save label predictions for test samples')
 parser.add_argument('-test_only', action='store_true', help='only performs test')
 parser.add_argument('-enc_colour', action='store_true', help='whether to perform random colour perturbation')
+parser.add_argument('-stride_lift', action='store_true', help='whether to raise the output stride of the backbone')
 
 # required options
 parser.add_argument('-head', required=True, help='head struction')
@@ -29,6 +30,7 @@ parser.add_argument('-save_path', required=True, help='Path to save train record
 parser.add_argument('-model_name', help='filename to a checkpoint model')
 
 # integer options
+parser.add_argument('-stride', default=8, type=int, help='output stride of the backbone')
 parser.add_argument('-n_cudas', default=2, type=int, help='number of cuda devices available')
 parser.add_argument('-n_epochs', default=100, type=int, help='number of total epochs')
 parser.add_argument('-n_classes', default=36, type=int, help='number of joints in the dataset')
