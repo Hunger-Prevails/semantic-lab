@@ -34,9 +34,11 @@ class Dataset(data.Dataset):
         with open('/home/yinglun.liu/Datasets/metadata.json') as file:
             metadata = json.load(file)
 
-        self.root = metadata['root'][args.data_name]
+        self.samples = []
+        for data_name in args.data_name:
+            n_samples = getattr(self, 'get_' + data_name + '_samples')(metadata['root'][data_name], phase)
 
-        self.samples = getattr(self, 'get_' + args.data_name + '_samples')(phase)
+            print('=> => collects [ {:d} ] {:s} samples from {:s}'.format(n_samples, phase, data_name))
 
         self.transforms = [
             transforms.ToTensor(),
@@ -46,17 +48,29 @@ class Dataset(data.Dataset):
 
         self.enc_colour = args.enc_colour and phase == 'train'
 
-        print('=> => collects [', self.__len__(), ']', phase, 'samples')
+        assert self.__len__() != 0
 
 
-    def get_smile_view_samples(self, phase):
-        with open(os.path.join(self.root, phase + '.pkl'), 'rb') as file:
+    def get_smile_view_samples(self, root, phase):
+        with open(os.path.join(root, phase + '.pkl'), 'rb') as file:
             samples = pickle.load(file)
 
         if phase != 'train':
             samples = [sample for sample in samples if not sample.to_flip]
 
-        return samples
+        self.samples += samples
+        return len(samples)
+
+
+    def get_smile_architect_samples(self, root, phase):
+        with open(os.path.join(root, phase + '.pkl'), 'rb') as file:
+            samples = pickle.load(file)
+
+        if phase != 'train':
+            samples = [sample for sample in samples if not sample.to_flip]
+
+        self.samples += samples
+        return len(samples)
 
 
     def to_atten(self, label):

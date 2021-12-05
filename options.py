@@ -25,7 +25,7 @@ parser.add_argument('-suffix', required=True, help='Model suffix')
 parser.add_argument('-adapter', help='train-time learn rate adaptation policy')
 parser.add_argument('-backbone', required=True, help='backbone architecture')
 parser.add_argument('-criterion', help='criterion function for train-time loss estimation')
-parser.add_argument('-data_name', required=True, help='name of dataset')
+parser.add_argument('-data_name', required=True, action='append', help='name of dataset')
 parser.add_argument('-save_path', required=True, help='Path to save train record')
 parser.add_argument('-model_name', help='filename to a checkpoint model')
 
