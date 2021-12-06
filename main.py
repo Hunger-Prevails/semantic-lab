@@ -21,11 +21,24 @@ def create_model(args):
     if args.resume or args.test_only:
         save_path = os.path.join(args.save_path, args.head + '_' + args.backbone + '_' + args.suffix)
 
-        print('=> Loading checkpoint from ' + os.path.join(save_path, args.model_name))
-        checkpoint = torch.load(os.path.join(save_path, args.model_name))
+        print('=> => loads checkpoint', os.path.join(save_path, args.model_name))
 
-        model.load_state_dict(checkpoint['model'])
-        state = checkpoint['state']
+        fetch_dict = torch.load(os.path.join(save_path, args.model_name))['model']
+        state_dict = model.state_dict()
+
+        fetch_keys = set(fetch_dict.keys())
+        state_keys = set(state_dict.keys())
+
+        for key in fetch_keys.difference(state_keys):
+            print('=> => => fetch key [', key, '] deleted due to redundancy')
+            fetch_dict.pop(key)
+
+        for state_key in state_keys.difference(set(fetch_dict.keys())):
+            print('=> => => state key [', state_key, '] untended')
+
+        state_dict.update(fetch_dict)
+        model.load_state_dict(state_dict)
+        print('<= <= checkpoint load is done')
 
     cudnn.benchmark = True
     model = nn.DataParallel(model, device_ids = range(args.n_cudas)).cuda() if args.n_cudas != 1 else model.cuda()

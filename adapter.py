@@ -58,3 +58,13 @@ class CosineAdapter(Adapter):
         factor = (1 + math.cos(math.pi * self.percent(state))) / 2
 
         return self.learn_rate_haven + (self.learn_rate - self.learn_rate_haven) * factor
+
+
+class ExponentAdapter(Adapter):
+    def __init__(self, args, optimizer, n_batches):
+        super().__init__(args, optimizer, n_batches)
+
+    def on_batch(self, state):
+        factor = math.pow(self.learn_rate_haven / self.learn_rate, self.percent(state))
+
+        return self.learn_rate * factor
