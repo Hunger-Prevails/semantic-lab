@@ -7,8 +7,8 @@ import torch
 from torch import nn, Tensor
 from torch.utils.model_zoo import load_url
 
-from .misc import SqueezeExcitation as SELayer
-from .misc import ConvNormActivation as CNALayer
+from ._misc import SqueezeExcitation as SELayer
+from ._misc import ConvNormActivation as CNALayer
 
 
 __all__ = ['MobileNetV3', 'mobilenet_v3_large', 'mobilenet_v3_small']
@@ -56,8 +56,7 @@ class Funnelexit(nn.Module):
         norm_layer: Callable[..., nn.Module],
     ):
         super().__init__()
-        if not (1 <= config.stride <= 2):
-            raise ValueError('illegal stride value')
+        print('=> => creates', self.__class__.__name__, 'of stride={:d} and dilation={:d}'.format(config.stride, config.dilation))
 
         self.use_res_connect = config.stride == 1 and config.input_channels == config.out_channels
 

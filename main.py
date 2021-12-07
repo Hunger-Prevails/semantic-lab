@@ -8,12 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 import utils
-
-
-def to_label_image(label, annotation):
-	dest_shape = list(label.shape) + [3]
-	label_image = np.array([annotation[l] for l in label.flatten()])
-	return label_image.reshape(dest_shape).astype(np.uint8)
+import model
 
 
 def anonymize(metadata, face_cascade, model, image_file, dest_file):
@@ -50,7 +45,7 @@ def anonymize(metadata, face_cascade, model, image_file, dest_file):
 	ax.imshow(jaws_image)
 
 	ax = plt.subplot(1, 4, 3)
-	ax.imshow(to_label_image(mask_image, annotation))
+	ax.imshow(utils.to_label_image(mask_image, annotation))
 
 	ax = plt.subplot(1, 4, 4)
 	ax.imshow(dest_image)
@@ -66,8 +61,8 @@ def main(model_path, image_path, dest_path):
 
 	face_cascade = cv2.CascadeClassifier('res/haarcascade.xml')
 
-	fargs = utils.FakeArgs()
-	model = utils.create_model(fargs, model_path)
+	fargs = model.FakeArgs()
+	model = model.create_model(fargs, model_path)
 
 	image_files = glob.glob(os.path.join(image_path, '*.png'))
 	image_files.sort()
