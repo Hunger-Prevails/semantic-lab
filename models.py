@@ -8,9 +8,9 @@ class FakeArgs:
         self.head = 'deeplabv3'
         self.backbone = 'resnet50'
 
-        self.stride_lift = True
+        self.stride_lift = False
 
-        self.stride = 16
+        self.stride = 8
         self.n_classes = 36
 
 

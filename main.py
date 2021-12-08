@@ -8,73 +8,108 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 import utils
-import model
+import models
+
+from models import FakeArgs
+
+np.seterr(all = 'raise')
+
+class Anonymizer(object):
+
+	def __init__(self, model, metadata, face_cascade):
+
+		self.model = model
+		self.metadata = metadata
+		self.face_cascade = face_cascade
 
 
-def anonymize(metadata, face_cascade, model, image_file, dest_file):
-	print('=> => anonymizes image:', image_file)
-	srce_image = cv2.imread(image_file)
-	dest_image = np.flip(srce_image, axis = -1).copy()
+	def anonymize(self, image_path):
+		image_name = os.path.basename(image_path)
 
-	try:
-		face_bbox, jaws_bbox = utils.detect_jaws(srce_image, face_cascade)
-	except:
-		print('=> => => detector fails on image:', image_file)
-		print('=> => => skips this image')
-		return
+		if os.path.exists(os.path.join(self.dest_path, image_name)):
+			return
+		print('=> => anonymizes image:', image_name)
 
-	jaws_image = utils.crop_jaws(dest_image, jaws_bbox)
-	mask_image = utils.detect_teeth(jaws_image, model, metadata)
+		srce_image = cv2.imread(image_path)
+		dest_image = np.flip(srce_image, axis = -1).copy()
 
-	annotation = metadata['annotation']['smile_view']
-	try:
-		y_coord = utils.get_y_coord(jaws_bbox, mask_image, len(annotation))
-	except:
-		y_coord = jaws_bbox[1]
+		try:
+			face_bbox, jaws_bbox = utils.detect_jaws(srce_image, self.face_cascade)
+		except:
+			print('=> => => detect fails on', image_path)
+			print('=> => => copies image to', self.fail_path['detect'])
 
-	plt.figure(figsize = (16, 8))
+			if not os.path.exists(self.fail_path['detect']):
+				os.mkdir(self.fail_path['detect'])
+			cv2.imwrite(os.path.join(self.fail_path['detect'], image_name), srce_image)
+			return
 
-	ax = plt.subplot(1, 4, 1)
-	ax.imshow(dest_image)
-	rect = patches.Rectangle((face_bbox[0], face_bbox[1]), face_bbox[2], face_bbox[3], linewidth = 2, edgecolor = 'r', facecolor = 'none')
-	ax.add_patch(rect)
-	rect = patches.Rectangle((jaws_bbox[0], jaws_bbox[1]), jaws_bbox[2], jaws_bbox[3], linewidth = 2, edgecolor = 'b', facecolor = 'none')
-	ax.add_patch(rect)
+		jaws_image = utils.crop_jaws(dest_image, jaws_bbox)
+		mask_image = utils.detect_teeth(jaws_image, self.model, self.metadata)
 
-	ax = plt.subplot(1, 4, 2)
-	ax.imshow(jaws_image)
+		annotation = self.metadata['annotation']['smile_view']
+		try:
+			y_coord = utils.get_y_coord(jaws_bbox, mask_image, len(annotation))
+		except:
+			print('=> => => smodel fails on', image_path)
+			print('=> => => copies image to', self.fail_path['smodel'])
 
-	ax = plt.subplot(1, 4, 3)
-	ax.imshow(utils.to_label_image(mask_image, annotation))
+			if not os.path.exists(self.fail_path['smodel']):
+				os.mkdir(self.fail_path['smodel'])
+			cv2.imwrite(os.path.join(self.fail_path['smodel'], image_name), srce_image)
+			return
 
-	ax = plt.subplot(1, 4, 4)
-	ax.imshow(dest_image)
-	ax.axhline(y = y_coord, color = 'g')
+		plt.figure(figsize = (16, 8))
 
-	plt.savefig(dest_file)
-	plt.close()
+		ax = plt.subplot(1, 4, 1)
+		ax.imshow(dest_image)
+		rect = patches.Rectangle((face_bbox[0], face_bbox[1]), face_bbox[2], face_bbox[3], linewidth = 2, edgecolor = 'r', facecolor = 'none')
+		ax.add_patch(rect)
+		rect = patches.Rectangle((jaws_bbox[0], jaws_bbox[1]), jaws_bbox[2], jaws_bbox[3], linewidth = 2, edgecolor = 'b', facecolor = 'none')
+		ax.add_patch(rect)
+
+		ax = plt.subplot(1, 4, 2)
+		ax.imshow(jaws_image)
+
+		ax = plt.subplot(1, 4, 3)
+		ax.imshow(utils.to_label_image(mask_image, annotation))
+
+		ax = plt.subplot(1, 4, 4)
+		ax.imshow(dest_image)
+		ax.axhline(y = y_coord, color = 'g')
+
+		plt.savefig(os.path.join(self.dest_path, image_name))
+		plt.close()
 
 
-def main(model_path, image_path, dest_path):
+	def run(self, srce_path, dest_path):
+		self.srce_path = srce_path
+		self.dest_path = dest_path
+		self.fail_path = dict(
+			detect = os.path.join(dest_path, 'detect_failure'),
+			smodel = os.path.join(dest_path, 'smodel_failure')
+		)
+		print('=> anonimization starts')
+
+		image_paths = glob.glob(os.path.join(srce_path, '*.png'))
+		image_paths.sort()
+		for image_path in image_paths:
+			self.anonymize(image_path)
+
+		print('<= anonimization finishes')
+
+
+def main(model_path, srce_path, dest_path):
+	model = models.create_model(FakeArgs(), model_path)
+
 	with open('res/metadata.json') as file:
 		metadata = json.load(file)
 
 	face_cascade = cv2.CascadeClassifier('res/haarcascade.xml')
 
-	fargs = model.FakeArgs()
-	model = model.create_model(fargs, model_path)
+	anonymizer = Anonymizer(model, metadata, face_cascade)
+	anonymizer.run(srce_path, dest_path)
 
-	image_files = glob.glob(os.path.join(image_path, '*.png'))
-	image_files.sort()
-
-	dest_files = [os.path.join(dest_path, os.path.basename(image_file)) for image_file in image_files]
-
-	print('=> anonimization starts')
-
-	for image_file, dest_file in zip(image_files, dest_files):
-		anonymize(metadata, face_cascade, model, image_file, dest_file)
-
-	print('<= anonimization finishes')
 
 if __name__ == '__main__':
 	main(sys.argv[1], sys.argv[2], sys.argv[3])
