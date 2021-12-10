@@ -7,44 +7,73 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+from functools import partial
+
 import utils
 import models
 
 from models import FakeArgs
+from exceptions import BoxException
 
 np.seterr(all = 'raise')
 
 class Anonymizer(object):
 
-	def __init__(self, model, metadata, face_cascade):
+	def __init__(self, model, metadata):
 
 		self.model = model
 		self.metadata = metadata
-		self.face_cascade = face_cascade
+
+
+	def save_fig(self, save_path, srce_image, jaws_image, mask_image, face_bbox, jaws_bbox, y_coord = None):
+		plt.figure(figsize = (16, 8))
+
+		Rectangle = partial(patches.Rectangle, linewidth = 2, facecolor = 'none')
+		annotation = self.metadata['annotation']['smile_view']
+
+		ax = plt.subplot(1, 4, 1)
+		ax.imshow(srce_image)
+		rect = Rectangle((face_bbox[0], face_bbox[1]), face_bbox[2], face_bbox[3], edgecolor = 'r')
+		ax.add_patch(rect)
+		rect = Rectangle((jaws_bbox[0], jaws_bbox[1]), jaws_bbox[2], jaws_bbox[3], edgecolor = 'b')
+		ax.add_patch(rect)
+
+		ax = plt.subplot(1, 4, 2)
+		ax.imshow(jaws_image)
+
+		ax = plt.subplot(1, 4, 3)
+		ax.imshow(utils.to_label_image(mask_image, annotation))
+
+		if y_coord is not None:
+			ax = plt.subplot(1, 4, 4)
+			ax.imshow(srce_image)
+			ax.axhline(y = y_coord, color = 'g')
+
+		plt.savefig(save_path)
+		plt.close()
 
 
 	def anonymize(self, image_path):
 		image_name = os.path.basename(image_path)
+		figur_name = image_name.replace('.png', '.jpg')
 
-		if os.path.exists(os.path.join(self.dest_path, image_name)):
+		if os.path.exists(os.path.join(self.dest_path, figur_name)):
 			return
 		print('=> => anonymizes image:', image_name)
 
-		srce_image = cv2.imread(image_path)
-		dest_image = np.flip(srce_image, axis = -1).copy()
-
+		srce_image = np.flip(cv2.imread(image_path), axis = -1).copy()
 		try:
-			face_bbox, jaws_bbox = utils.detect_jaws(srce_image, self.face_cascade)
-		except:
-			print('=> => => detect fails on', image_path)
+			face_bbox, jaws_bbox = utils.detect_jaws(srce_image)
+		except BoxException as exception:
+			print('=> => => {:s} on {:s}'.format(exception, image_path))
 			print('=> => => copies image to', self.fail_path['detect'])
 
 			if not os.path.exists(self.fail_path['detect']):
 				os.mkdir(self.fail_path['detect'])
-			cv2.imwrite(os.path.join(self.fail_path['detect'], image_name), srce_image)
+			cv2.imwrite(os.path.join(self.fail_path['detect'], image_name), np.flip(srce_image, axis = -1))
 			return
 
-		jaws_image = utils.crop_jaws(dest_image, jaws_bbox)
+		jaws_image = utils.crop_jaws(srce_image, jaws_bbox)
 		mask_image = utils.detect_teeth(jaws_image, self.model, self.metadata)
 
 		annotation = self.metadata['annotation']['smile_view']
@@ -56,30 +85,13 @@ class Anonymizer(object):
 
 			if not os.path.exists(self.fail_path['smodel']):
 				os.mkdir(self.fail_path['smodel'])
-			cv2.imwrite(os.path.join(self.fail_path['smodel'], image_name), srce_image)
+			cv2.imwrite(os.path.join(self.fail_path['smodel'], image_name), np.flip(srce_image, axis = -1))
+			save_path = os.path.join(self.fail_path['smodel'], figur_name)
+			self.save_fig(save_path, srce_image, jaws_image, mask_image, face_bbox, jaws_bbox)
 			return
 
-		plt.figure(figsize = (16, 8))
-
-		ax = plt.subplot(1, 4, 1)
-		ax.imshow(dest_image)
-		rect = patches.Rectangle((face_bbox[0], face_bbox[1]), face_bbox[2], face_bbox[3], linewidth = 2, edgecolor = 'r', facecolor = 'none')
-		ax.add_patch(rect)
-		rect = patches.Rectangle((jaws_bbox[0], jaws_bbox[1]), jaws_bbox[2], jaws_bbox[3], linewidth = 2, edgecolor = 'b', facecolor = 'none')
-		ax.add_patch(rect)
-
-		ax = plt.subplot(1, 4, 2)
-		ax.imshow(jaws_image)
-
-		ax = plt.subplot(1, 4, 3)
-		ax.imshow(utils.to_label_image(mask_image, annotation))
-
-		ax = plt.subplot(1, 4, 4)
-		ax.imshow(dest_image)
-		ax.axhline(y = y_coord, color = 'g')
-
-		plt.savefig(os.path.join(self.dest_path, image_name))
-		plt.close()
+		save_path = os.path.join(self.dest_path, figur_name)
+		self.save_fig(save_path, srce_image, jaws_image, mask_image, face_bbox, jaws_bbox, y_coord)
 
 
 	def run(self, srce_path, dest_path):
@@ -105,9 +117,7 @@ def main(model_path, srce_path, dest_path):
 	with open('res/metadata.json') as file:
 		metadata = json.load(file)
 
-	face_cascade = cv2.CascadeClassifier('res/haarcascade.xml')
-
-	anonymizer = Anonymizer(model, metadata, face_cascade)
+	anonymizer = Anonymizer(model, metadata)
 	anonymizer.run(srce_path, dest_path)
 
 

@@ -1,8 +1,10 @@
 import torch
-import numpy as np
-
 from torchvision import transforms
 
+import numpy as np
+import face_recognition
+
+from exceptions import BoxException
 
 def detect_teeth(image, model, metadata):
     model.eval()
@@ -21,13 +23,20 @@ def detect_teeth(image, model, metadata):
     return logits['out'].detach().cpu().numpy().argmax(axis = 1).squeeze()
 
 
-def detect_jaws(image, face_cascade):
-    bboxes = face_cascade.detectMultiScale(image, minSize = (40, 40))
-    bboxes = np.array(bboxes)
+def detect_jaws(image):
+    bboxes = np.array(face_recognition.face_locations(image, model = 'cnn'))
 
-    areas = np.multiply(bboxes[:, 2], bboxes[:, 3])
+    if not bboxes.size:
+        raise BoxException('no detection')
 
-    face_bbox = bboxes[np.argmax(areas)]
+    bboxes = np.stack([bboxes[:, 3], bboxes[:, 0], bboxes[:, 1] - bboxes[:, 3], bboxes[:, 2] - bboxes[:, 0]]).T
+
+    box_areas = np.multiply(bboxes[:, 2], bboxes[:, 3])
+
+    if np.amax(box_areas) < np.multiply(image.shape[0], image.shape[1]) // 20:
+        raise BoxException('detection box too small')
+
+    face_bbox = bboxes[np.argmax(box_areas)]
 
     border_t = face_bbox[1] + face_bbox[3] // 2 + face_bbox[3] // 8
     border_b = face_bbox[1] + face_bbox[3]
