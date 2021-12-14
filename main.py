@@ -10,6 +10,7 @@ import matplotlib.patches as patches
 from functools import partial
 
 import utils
+import flood
 import models
 
 from models import FakeArgs
@@ -65,7 +66,7 @@ class Anonymizer(object):
 		try:
 			face_bbox, jaws_bbox = utils.detect_jaws(srce_image)
 		except BoxException as exception:
-			print('=> => => {:s} on {:s}'.format(exception, image_path))
+			print('=> => => {:s} on {:s}'.format(exception.message, image_path))
 			print('=> => => copies image to', self.fail_path['detect'])
 
 			if not os.path.exists(self.fail_path['detect']):
@@ -75,6 +76,7 @@ class Anonymizer(object):
 
 		jaws_image = utils.crop_jaws(srce_image, jaws_bbox)
 		mask_image = utils.detect_teeth(jaws_image, self.model, self.metadata)
+		mask_image = flood.ransac(flood.flood(mask_image))
 
 		annotation = self.metadata['annotation']['smile_view']
 		try:
@@ -86,6 +88,7 @@ class Anonymizer(object):
 			if not os.path.exists(self.fail_path['smodel']):
 				os.mkdir(self.fail_path['smodel'])
 			cv2.imwrite(os.path.join(self.fail_path['smodel'], image_name), np.flip(srce_image, axis = -1))
+			np.save(os.path.join(self.fail_path['smodel'], image_name.replace('.png', '.npy')), mask_image)
 			save_path = os.path.join(self.fail_path['smodel'], figur_name)
 			self.save_fig(save_path, srce_image, jaws_image, mask_image, face_bbox, jaws_bbox)
 			return

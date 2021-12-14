@@ -1,12 +1,10 @@
-import torch
-from torchvision import transforms
-
 import numpy as np
-import face_recognition
 
 from exceptions import BoxException
 
 def detect_teeth(image, model, metadata):
+    import torch
+    from torchvision import transforms
     model.eval()
 
     image_transforms = [
@@ -24,27 +22,35 @@ def detect_teeth(image, model, metadata):
 
 
 def detect_jaws(image):
-    bboxes = np.array(face_recognition.face_locations(image, model = 'cnn'))
+    import face_recognition
+    locations = face_recognition.face_locations(image)
+    landmarks = face_recognition.face_landmarks(image, locations)
+    locations = np.array(locations)
 
-    if not bboxes.size:
+    if not locations.size:
         raise BoxException('no detection')
 
-    bboxes = np.stack([bboxes[:, 3], bboxes[:, 0], bboxes[:, 1] - bboxes[:, 3], bboxes[:, 2] - bboxes[:, 0]]).T
+    bboxes = np.stack([locations[:, 3], locations[:, 0], locations[:, 1] - locations[:, 3], locations[:, 2] - locations[:, 0]]).T
 
     box_areas = np.multiply(bboxes[:, 2], bboxes[:, 3])
+    face_indx = np.argmax(box_areas)
 
-    if np.amax(box_areas) < np.multiply(image.shape[0], image.shape[1]) // 20:
+    if box_areas[face_indx] < np.multiply(image.shape[0], image.shape[1]) // 20:
         raise BoxException('detection box too small')
 
-    face_bbox = bboxes[np.argmax(box_areas)]
+    face_bbox = bboxes[face_indx]
+    face_marks = landmarks[face_indx]
 
-    border_t = face_bbox[1] + face_bbox[3] // 2 + face_bbox[3] // 8
-    border_b = face_bbox[1] + face_bbox[3]
+    chin_marks = np.stack(face_marks['chin'])
+    nose_marks = np.stack(face_marks['nose_tip'] + face_marks['nose_bridge'])
+
+    border_t = nose_marks[:, 1].mean()
+    border_b = chin_marks[4:-4, 1].mean()
 
     border_l = face_bbox[0] + face_bbox[2] // 6
     border_r = face_bbox[0] + face_bbox[2] - face_bbox[2] // 6
 
-    jaws_bbox = np.array([border_l, border_t, border_r - border_l, border_b - border_t])
+    jaws_bbox = np.array([border_l, border_t, border_r - border_l, border_b - border_t]).astype(int)
 
     return face_bbox, jaws_bbox
 
