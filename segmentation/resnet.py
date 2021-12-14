@@ -167,7 +167,6 @@ class ResNet(nn.Module):
         self,
         block: Callable[..., nn.Module],
         layers: List[int],
-        zero_init_residual: bool = False,
         groups: int = 1,
         base_width: int = 64,
         stride_to_dilation: Optional[List[bool]] = None,
@@ -195,21 +194,14 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=stride_to_dilation[1])
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=stride_to_dilation[2])
 
+        self.outplanes = dict(layer1 = 256, layer2 = 512, layer3 = 1024, layer4 = 2048)
+
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-
-        # Zero-initialize the last BN in each residual branch,
-        # so that the residual branch starts with zeros, and each residual block behaves like an identity.
-        if zero_init_residual:
-            for m in self.modules():
-                if isinstance(m, Bottleneck):
-                    nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
-                elif isinstance(m, BasicBlock):
-                    nn.init.constant_(m.bn2.weight, 0)  # type: ignore[arg-type]
 
     def _make_layer(
         self,
@@ -258,107 +250,105 @@ class ResNet(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
 
+        ret = dict()
         x = self.layer1(x)
+        ret['layer1'] = x
         x = self.layer2(x)
-        m = self.layer3(x)
-        n = self.layer4(m)
+        ret['layer2'] = x
+        x = self.layer3(x)
+        ret['layer3'] = x
+        x = self.layer4(x)
+        ret['layer4'] = x
 
-        return dict(out = n, aux = m)
+        return ret
 
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
 
 
-def _resnet(arch: str, block: Callable[..., nn.Module], layers: List[int], pretrain: bool, progress: bool, **kwargs: Any) -> ResNet:
+def _resnet(arch: str, block: Callable[..., nn.Module], layers: List[int], pretrain: bool, **kwargs: Any) -> ResNet:
     model = ResNet(block, layers, **kwargs)
     if pretrain:
-        state_dict = load_url(model_urls[arch], progress = progress)
+        state_dict = load_url(model_urls[arch], progress = True)
         model.load_state_dict(state_dict)
     return model
 
 
-def resnet18(pretrain: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnet18(pretrain: bool = False, **kwargs: Any) -> ResNet:
     r'''ResNet-18 model from
     `'Deep Residual Learning for Image Recognition' <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
     Args:
         pretrain (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
     '''
-    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrain, progress, **kwargs)
+    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrain, **kwargs)
 
 
-def resnet34(pretrain: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnet34(pretrain: bool = False, **kwargs: Any) -> ResNet:
     r'''ResNet-34 model from
     `'Deep Residual Learning for Image Recognition' <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
     Args:
         pretrain (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
     '''
-    return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], pretrain, progress, **kwargs)
+    return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], pretrain, **kwargs)
 
 
-def resnet50(pretrain: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnet50(pretrain: bool = False, **kwargs: Any) -> ResNet:
     r'''ResNet-50 model from
     `'Deep Residual Learning for Image Recognition' <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
     Args:
         pretrain (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
     '''
-    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrain, progress, **kwargs)
+    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrain, **kwargs)
 
 
-def resnet101(pretrain: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnet101(pretrain: bool = False, **kwargs: Any) -> ResNet:
     r'''ResNet-101 model from
     `'Deep Residual Learning for Image Recognition' <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
     Args:
         pretrain (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
     '''
-    return _resnet('resnet101', Bottleneck, [3, 4, 23, 3], pretrain, progress, **kwargs)
+    return _resnet('resnet101', Bottleneck, [3, 4, 23, 3], pretrain, **kwargs)
 
 
-def resnet152(pretrain: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnet152(pretrain: bool = False, **kwargs: Any) -> ResNet:
     r'''ResNet-152 model from
     `'Deep Residual Learning for Image Recognition' <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
     Args:
         pretrain (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
     '''
-    return _resnet('resnet152', Bottleneck, [3, 8, 36, 3], pretrain, progress, **kwargs)
+    return _resnet('resnet152', Bottleneck, [3, 8, 36, 3], pretrain, **kwargs)
 
 
-def resnext50_32x4d(pretrain: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnext50_32x4d(pretrain: bool = False, **kwargs: Any) -> ResNet:
     r'''ResNeXt-50 32x4d model from
     `'Aggregated Residual Transformation for Deep Neural Networks' <https://arxiv.org/pdf/1611.05431.pdf>`_.
 
     Args:
         pretrain (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
     '''
     kwargs['groups'] = 32
     kwargs['base_width'] = 4
-    return _resnet('resnext50_32x4d', Bottleneck, [3, 4, 6, 3], pretrain, progress, **kwargs)
+    return _resnet('resnext50_32x4d', Bottleneck, [3, 4, 6, 3], pretrain, **kwargs)
 
 
-def resnext101_32x8d(pretrain: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnext101_32x8d(pretrain: bool = False, **kwargs: Any) -> ResNet:
     r'''ResNeXt-101 32x8d model from
     `'Aggregated Residual Transformation for Deep Neural Networks' <https://arxiv.org/pdf/1611.05431.pdf>`_.
 
     Args:
         pretrain (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
     '''
     kwargs['groups'] = 32
     kwargs['base_width'] = 8
-    return _resnet('resnext101_32x8d', Bottleneck, [3, 4, 23, 3], pretrain, progress, **kwargs)
+    return _resnet('resnext101_32x8d', Bottleneck, [3, 4, 23, 3], pretrain, **kwargs)
 
 
-def wide_resnet50_2(pretrain: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def wide_resnet50_2(pretrain: bool = False, **kwargs: Any) -> ResNet:
     r'''Wide ResNet-50-2 model from
     `'Wide Residual Networks' <https://arxiv.org/pdf/1605.07146.pdf>`_.
 
@@ -369,13 +359,12 @@ def wide_resnet50_2(pretrain: bool = False, progress: bool = True, **kwargs: Any
 
     Args:
         pretrain (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
     '''
     kwargs['base_width'] = 64 * 2
-    return _resnet('wide_resnet50_2', Bottleneck, [3, 4, 6, 3], pretrain, progress, **kwargs)
+    return _resnet('wide_resnet50_2', Bottleneck, [3, 4, 6, 3], pretrain, **kwargs)
 
 
-def wide_resnet101_2(pretrain: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def wide_resnet101_2(pretrain: bool = False, **kwargs: Any) -> ResNet:
     r'''Wide ResNet-101-2 model from
     `'Wide Residual Networks' <https://arxiv.org/pdf/1605.07146.pdf>`_.
 
@@ -386,7 +375,6 @@ def wide_resnet101_2(pretrain: bool = False, progress: bool = True, **kwargs: An
 
     Args:
         pretrain (bool): If True, returns a model pre-trained on ImageNet
-        progress (bool): If True, displays a progress bar of the download to stderr
     '''
     kwargs['base_width'] = 64 * 2
-    return _resnet('wide_resnet101_2', Bottleneck, [3, 4, 23, 3], pretrain, progress, **kwargs)
+    return _resnet('wide_resnet101_2', Bottleneck, [3, 4, 23, 3], pretrain, **kwargs)

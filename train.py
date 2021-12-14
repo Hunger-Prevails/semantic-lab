@@ -15,7 +15,6 @@ class Trainer:
         self.model = model
         self.writer = writer
 
-        self.aux_loss = args.aux_loss
         self.enc_crop = args.enc_crop
         self.attention = args.attention
         self.n_classes = args.n_classes
@@ -54,9 +53,9 @@ class Trainer:
                 batch['atten'] = batch['atten'].to(device)
 
             logits = self.model(batch['image'])
-            loss = self.criterion(logits['out'], batch['label'])
-            if self.aux_loss:
-                loss += self.criterion(logits['aux'], batch['label'])
+            loss = self.criterion(logits['layer4'], batch['label'])
+            if 'layer3' in logits:
+                loss += self.criterion(logits['layer3'], batch['label'])
 
             loss = torch.mul(loss, batch['atten']).mean() if self.attention else loss.mean()
 
@@ -91,7 +90,7 @@ class Trainer:
                 logits = self.model(batch['image'])
 
             batch['label'] = batch['label'].numpy()
-            predictions = logits['out'].detach().cpu().numpy().argmax(axis = 1)
+            predictions = logits['layer4'].detach().cpu().numpy().argmax(axis = 1)
 
             if save_spec:
                 self.writer.save_spec(predictions, i)

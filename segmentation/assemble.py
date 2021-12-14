@@ -1,5 +1,7 @@
 import math
 
+from functools import partial
+
 from torch import nn
 from torch.utils.model_zoo import load_url
 
@@ -7,17 +9,11 @@ from . import resnet
 from . import mobilenetv3
 from .fcn import FCNHead
 from ._utils import Init
-from ._utils import Segmentation
-from ._utils import StrideLifter
+from ._utils import Conn
+from ._utils import Segment
+from ._utils import SegmentLift
+from ._utils import SegmentPyramid
 from .deeplabv3 import DeepLabHead
-
-__all__ = [
-    'fcn_resnet50',
-    'fcn_resnet101',
-    'deeplabv3_resnet50',
-    'deeplabv3_resnet101',
-    'deeplabv3_mobilenet_v3_large',
-]
 
 
 model_urls = {
@@ -29,7 +25,7 @@ model_urls = {
 }
 
 
-def std_resnet(stride: int):
+def convert_to_dilation(stride: int):
     std_layer2 = bool(max(3 - math.log2(stride), 0))
     std_layer3 = bool(max(4 - math.log2(stride), 0))
     std_layer4 = bool(max(5 - math.log2(stride), 0))
@@ -37,79 +33,46 @@ def std_resnet(stride: int):
     return [std_layer2, std_layer3, std_layer4]
 
 
-def std_mobilenet(stride: int):
-    std_layer1 = bool(max(2 - math.log2(stride), 0))
-    std_layer2 = bool(max(3 - math.log2(stride), 0))
-    std_layer3 = bool(max(4 - math.log2(stride), 0))
-    std_layer4 = bool(max(5 - math.log2(stride), 0))
+def assemble(names: dict, pretrain: bool, stride: int, n_classes: int, connector: Conn) -> nn.Module:
+    backbone = getattr(resnet, names['backbone'], getattr(mobilenetv3, names['backbone'], None))
 
-    return [std_layer1, std_layer2, std_layer3, std_layer4]
+    if backbone is None:
+        raise NotImplementedError('backbone {} is not supported as of now'.format(names['backbone']))
 
-
-def backbone_to_head(
-    name: str, backbone_name: str, pretrain: bool, stride: int, n_classes: int, aux_loss: bool = False, stride_lift: bool = False
-) -> nn.Module:
-    if 'resnet' in backbone_name:
-        stride_to_dilation = std_resnet(stride)
-        backbone = resnet.__dict__[backbone_name](
-            pretrain = pretrain,
-            stride_to_dilation = stride_to_dilation
-        )
-        out_inplanes = 2048
-        aux_inplanes = 1024
-    elif 'mobilenet_v3' in backbone_name:
-        stride_to_dilation = std_mobilenet(stride)
-        backbone = mobilenetv3.__dict__[backbone_name](
-            pretrain = pretrain,
-            stride_to_dilation = stride_to_dilation
-        )
-        out_inplanes = 960
-        aux_inplanes = 160
-    else:
-        raise NotImplementedError('backbone {} is not supported as of now'.format(backbone_name))
-
-    aux_head = None
-    aux_lifter = None
-    size_lifter = 1 - stride_to_dilation[-2]
-    if aux_loss:
-        aux_head = FCNHead(aux_inplanes, n_classes)
-        if stride_lift and size_lifter != 0:
-            aux_lifter = StrideLifter(aux_inplanes, size_lifter)
+    stride_to_dilation = convert_to_dilation(stride)
+    backbone = backbone(pretrain = pretrain, stride_to_dilation = stride_to_dilation)
 
     head_creator = dict(deeplabv3 = DeepLabHead, fcn = FCNHead)
-    head = head_creator[name](out_inplanes, n_classes)
-    lifter = None
-    size_lifter = 2 - stride_to_dilation[-2] - stride_to_dilation[-1]
-    if stride_lift and size_lifter != 0:
-        lifter = StrideLifter(out_inplanes, size_lifter)
+    head_creator = partial(head_creator[names['head']], n_classes = n_classes)
 
-    return Segmentation(backbone, head, lifter, aux_head, aux_lifter)
+    aux_head_creator = partial(FCNHead, n_classes = n_classes)
+
+    if connector is Conn.NONE:
+        return Segment(backbone, head_creator)
+    elif connector is Conn.AUX_NONE:
+        return Segment(backbone, head_creator, aux_head_creator)
+    elif connector is Conn.LIFT:
+        return SegmentLift(backbone, head_creator, stride_to_dilation)
+    elif connector is Conn.AUX_LIFT:
+        return SegmentLift(backbone, head_creator, stride_to_dilation, aux_head_creator)
+    else:
+        return SegmentPyramid(backbone, head_creator)
 
 
-def _load_model(
-    arch_type: str,
-    backbone: str,
-    pretrain: Init,
-    stride: int,
-    n_classes: int,
-    aux_loss: bool,
-    stride_lift: bool
-) -> nn.Module:
+def _load_model(head: str, backbone: str, pretrain: Init, stride: int, n_classes: int, connector: Conn) -> nn.Module:
     '''
     constructs a segmentation model and optionally loads the coco pre-trains
     '''
+    names = dict(head = head, backbone = backbone)
+    model = assemble(names, pretrain is Init.IMAGENET, stride, n_classes, connector)
+
     if pretrain is Init.COCO:
-        model = backbone_to_head(arch_type, backbone, False, stride, n_classes, aux_loss, stride_lift)
-        load_pretrain(model, arch_type, backbone)
-    elif pretrain is Init.IMAGENET:
-        model = backbone_to_head(arch_type, backbone, True, stride, n_classes, aux_loss, stride_lift)
-    else:
-        model = backbone_to_head(arch_type, backbone, False, stride, n_classes, aux_loss, stride_lift)
+        load_pretrain(model, head, backbone)
     return model
 
 
-def load_pretrain(model: nn.Module, arch_type: str, backbone: str) -> None:
-    arch = arch_type + '_' + backbone + '_coco'
+def load_pretrain(model: nn.Module, head: str, backbone: str) -> None:
+    arch = head + '_' + backbone + '_coco'
 
     assert arch in model_urls
 
@@ -144,80 +107,70 @@ def load_pretrain(model: nn.Module, arch_type: str, backbone: str) -> None:
 
 
 def fcn_resnet50(
-    pretrain: Init = Init.IMAGENET,
+    pretrain: Init = Init.NONE,
     stride: int = 16,
     n_classes: int = 21,
-    aux_loss: bool = False,
-    stride_lift: bool = False
+    connector: Conn = Conn.NONE
 ) -> nn.Module:
     '''Constructs a Fully-Convolutional Network model with a ResNet-50 backbone.
 
     Args:
         n_classes (int): number of output classes of the model (including the background)
-        aux_loss (bool): If True, it uses an auxiliary loss
     '''
-    return _load_model('fcn', 'resnet50', pretrain, stride, n_classes, aux_loss, stride_lift)
+    return _load_model('fcn', 'resnet50', pretrain, stride, n_classes, connector)
 
 
 def fcn_resnet101(
-    pretrain: Init = Init.IMAGENET,
+    pretrain: Init = Init.NONE,
     stride: int = 16,
     n_classes: int = 21,
-    aux_loss: bool = False,
-    stride_lift: bool = False
+    connector: Conn = Conn.NONE
 ) -> nn.Module:
     '''Constructs a Fully-Convolutional Network model with a ResNet-101 backbone.
 
     Args:
         n_classes (int): number of output classes of the model (including the background)
-        aux_loss (bool): If True, it uses an auxiliary loss
     '''
-    return _load_model('fcn', 'resnet101', pretrain, stride, n_classes, aux_loss, stride_lift)
+    return _load_model('fcn', 'resnet101', pretrain, stride, n_classes, connector)
 
 
 def deeplabv3_resnet50(
-    pretrain: Init = Init.IMAGENET,
+    pretrain: Init = Init.NONE,
     stride: int = 16,
     n_classes: int = 21,
-    aux_loss: bool = False,
-    stride_lift: bool = False
+    connector: Conn = Conn.NONE
 ) -> nn.Module:
     '''Constructs a DeepLabV3 model with a ResNet-50 backbone.
 
     Args:
         n_classes (int): number of output classes of the model (including the background)
-        aux_loss (bool): If True, it uses an auxiliary loss
     '''
-    return _load_model('deeplabv3', 'resnet50', pretrain, stride, n_classes, aux_loss, stride_lift)
+    return _load_model('deeplabv3', 'resnet50', pretrain, stride, n_classes, connector)
 
 
 def deeplabv3_resnet101(
-    pretrain: Init = Init.IMAGENET,
+    pretrain: Init = Init.NONE,
     stride: int = 16,
     n_classes: int = 21,
-    aux_loss: bool = False,
-    stride_lift: bool = False
+    connector: Conn = Conn.NONE
 ) -> nn.Module:
     '''Constructs a DeepLabV3 model with a ResNet-101 backbone.
 
     Args:
         n_classes (int): The number of classes
-        aux_loss (bool): If True, include an auxiliary classifier
     '''
-    return _load_model('deeplabv3', 'resnet101', pretrain, stride, n_classes, aux_loss, stride_lift)
+    return _load_model('deeplabv3', 'resnet101', pretrain, stride, n_classes, connector)
 
 
 def deeplabv3_mobilenet_v3_large(
-    pretrain: Init = Init.IMAGENET,
+    pretrain: Init = Init.NONE,
     stride: int = 16,
     n_classes: int = 21,
-    aux_loss: bool = False,
-    stride_lift: bool = False
+    connector: Conn = Conn.NONE
 ) -> nn.Module:
     '''Constructs a DeepLabV3 model with a MobileNetV3-Large backbone.
 
     Args:
         n_classes (int): number of output classes of the model (including the background)
-        aux_loss (bool): If True, it uses an auxiliary loss
     '''
-    return _load_model('deeplabv3', 'mobilenet_v3_large', pretrain, stride, n_classes, aux_loss, stride_lift)
+    return _load_model('deeplabv3', 'mobilenet_v3_large', pretrain, stride, n_classes, connector)

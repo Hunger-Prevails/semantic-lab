@@ -1,23 +1,23 @@
 import argparse
 
 from segmentation import Init
+from segmentation import Conn
 
 parser = argparse.ArgumentParser(description='parser for all pipeline configurations')
 
 # model init options
 parser.add_argument('-resume', action='store_true', help='whether to continue from a previous checkpoint')
 parser.add_argument('-pretrain', type=lambda name: Init[name], help='model intialization options')
+parser.add_argument('-connector', type=lambda name: Conn[name], help='connector structure')
 
 # bool options
 parser.add_argument('-shuffle', action='store_true', help='shuffle train samples at the start of each epoch')
-parser.add_argument('-aux_loss', action='store_true', help='whether to introduce an auxiliary loss term on intermediate feature maps')
 parser.add_argument('-enc_crop', action='store_true', help='whether to perform random crop augmentation')
 parser.add_argument('-half_acc', action='store_true', help='whether to use half precision for speed-up and memory efficiency')
 parser.add_argument('-attention', action='store_true', help='whether to apply attention scores on loss computation')
 parser.add_argument('-save_spec', action='store_true', help='whether to save label predictions for test samples')
 parser.add_argument('-test_only', action='store_true', help='only performs test')
 parser.add_argument('-enc_colour', action='store_true', help='whether to perform random colour perturbation')
-parser.add_argument('-stride_lift', action='store_true', help='whether to raise the output stride of the backbone')
 
 # required options
 parser.add_argument('-head', required=True, help='head struction')

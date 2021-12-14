@@ -15,7 +15,7 @@ def create_model(args):
     model_name = args.head + '_' + args.backbone
 
     assert hasattr(segmentation, model_name)
-    model = getattr(segmentation, model_name)(args.pretrain, args.stride, args.n_classes, args.aux_loss, args.stride_lift)
+    model = getattr(segmentation, model_name)(args.pretrain, args.stride, args.n_classes, args.connector)
     state = None
 
     if args.resume or args.test_only:
