@@ -37,6 +37,7 @@ parser.add_argument('-n_classes', default=36, type=int, help='number of joints i
 parser.add_argument('-n_workers', default=2, type=int, help='number of subprocesses to load data')
 parser.add_argument('-batch_size', default=64, type=int, help='size of mini-batches for each iteration')
 parser.add_argument('-n_iters_start', default=256, type=int, help='number of iterations in the warmup phase')
+parser.add_argument('-n_channels_pyramid', default=256, type=int, help='number of channels the feature pyramid produces')
 parser.add_argument('-n_iters_check_loss', default=32, type=int, help='number of iterations over which to average the losses')
 parser.add_argument('-n_iters_check_model', default=512, type=int, help='number of iterations before next validation checkpoint')
 

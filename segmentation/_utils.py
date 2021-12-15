@@ -106,17 +106,18 @@ class SegmentPyramid(nn.Module):
         self,
         backbone: nn.Module,
         classifier: Callable[..., nn.Module],
+        n_channels: int
     ) -> None:
         super().__init__()
         self.backbone = backbone
-        self.classifier = classifier(256)
+        self.classifier = classifier(n_channels)
 
-        self.layer1_1x1 = CNALayer(backbone.outplanes['layer1'], 256, 1, stride = 2)
-        self.layer2_1x1 = CNALayer(backbone.outplanes['layer2'], 256, 1, stride = 1)
-        self.layer3_1x1 = CNALayer(backbone.outplanes['layer3'], 256, 1, stride = 1)
-        self.layer4_1x1 = CNALayer(backbone.outplanes['layer4'], 256, 1, stride = 1)
+        self.layer1_1x1 = CNALayer(backbone.outplanes['layer1'], n_channels, 1, stride = 2)
+        self.layer2_1x1 = CNALayer(backbone.outplanes['layer2'], n_channels, 1, stride = 1)
+        self.layer3_1x1 = CNALayer(backbone.outplanes['layer3'], n_channels, 1, stride = 1)
+        self.layer4_1x1 = CNALayer(backbone.outplanes['layer4'], n_channels, 1, stride = 1)
 
-        self.conv = CNALayer(256, 256, 3)
+        self.conv = CNALayer(n_channels, n_channels, 3)
 
     def forward(self, x: Tensor) -> Dict[str, Tensor]:
         input_shape = x.shape[2:]

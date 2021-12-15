@@ -1,4 +1,5 @@
 import math
+import json
 
 from functools import partial
 
@@ -16,15 +17,6 @@ from ._utils import SegmentPyramid
 from .deeplabv3 import DeepLabHead
 
 
-model_urls = {
-    'fcn_resnet50_coco': 'https://download.pytorch.org/models/fcn_resnet50_coco-1167a1af.pth',
-    'fcn_resnet101_coco': 'https://download.pytorch.org/models/fcn_resnet101_coco-7ecb50ca.pth',
-    'deeplabv3_resnet50_coco': 'https://download.pytorch.org/models/deeplabv3_resnet50_coco-cd0a2569.pth',
-    'deeplabv3_resnet101_coco': 'https://download.pytorch.org/models/deeplabv3_resnet101_coco-586e9e4e.pth',
-    'deeplabv3_mobilenet_v3_large_coco': 'https://download.pytorch.org/models/deeplabv3_mobilenet_v3_large-fc3c493d.pth',
-}
-
-
 def convert_to_dilation(stride: int):
     std_layer2 = bool(max(3 - math.log2(stride), 0))
     std_layer3 = bool(max(4 - math.log2(stride), 0))
@@ -33,50 +25,51 @@ def convert_to_dilation(stride: int):
     return [std_layer2, std_layer3, std_layer4]
 
 
-def assemble(names: dict, pretrain: bool, stride: int, n_classes: int, connector: Conn) -> nn.Module:
-    backbone = getattr(resnet, names['backbone'], getattr(mobilenetv3, names['backbone'], None))
+def assemble(pretrain: bool, args: object) -> nn.Module:
+    backbone = getattr(resnet, args.backbone, getattr(mobilenetv3, args.backbone, None))
 
     if backbone is None:
-        raise NotImplementedError('backbone {} is not supported as of now'.format(names['backbone']))
+        raise NotImplementedError('backbone {} is not supported as of now'.format(args.backbone))
 
-    stride_to_dilation = convert_to_dilation(stride)
+    stride_to_dilation = convert_to_dilation(args.stride)
     backbone = backbone(pretrain = pretrain, stride_to_dilation = stride_to_dilation)
 
     head_creator = dict(deeplabv3 = DeepLabHead, fcn = FCNHead)
-    head_creator = partial(head_creator[names['head']], n_classes = n_classes)
+    head_creator = partial(head_creator[args.head], n_classes = args.n_classes)
 
-    aux_head_creator = partial(FCNHead, n_classes = n_classes)
+    aux_head_creator = partial(FCNHead, n_classes = args.n_classes)
 
-    if connector is Conn.NONE:
+    if args.connector is Conn.NONE:
         return Segment(backbone, head_creator)
-    elif connector is Conn.AUX_NONE:
+    elif args.connector is Conn.AUX_NONE:
         return Segment(backbone, head_creator, aux_head_creator)
-    elif connector is Conn.LIFT:
+    elif args.connector is Conn.LIFT:
         return SegmentLift(backbone, head_creator, stride_to_dilation)
-    elif connector is Conn.AUX_LIFT:
+    elif args.connector is Conn.AUX_LIFT:
         return SegmentLift(backbone, head_creator, stride_to_dilation, aux_head_creator)
     else:
-        return SegmentPyramid(backbone, head_creator)
+        return SegmentPyramid(backbone, head_creator, args.n_channels_pyramid)
 
 
-def _load_model(head: str, backbone: str, pretrain: Init, stride: int, n_classes: int, connector: Conn) -> nn.Module:
+def assemble_and_load(args: object) -> nn.Module:
     '''
     constructs a segmentation model and optionally loads the coco pre-trains
     '''
-    names = dict(head = head, backbone = backbone)
-    model = assemble(names, pretrain is Init.IMAGENET, stride, n_classes, connector)
+    model = assemble(args.pretrain is Init.IMAGENET, args)
 
-    if pretrain is Init.COCO:
-        load_pretrain(model, head, backbone)
+    if args.pretrain is Init.COCO:
+        load_pretrain(model, args)
     return model
 
 
-def load_pretrain(model: nn.Module, head: str, backbone: str) -> None:
-    arch = head + '_' + backbone + '_coco'
+def load_pretrain(model: nn.Module, args: object) -> None:
+    arch = args.head + '_' + args.backbone + '_coco'
 
+    with open('res/coco_pretrains.json') as file:
+        model_urls = json.load(file)
     assert arch in model_urls
 
-    fetch_dict = load_url(model_urls.get(arch), progress = True)
+    fetch_dict = load_url(model_urls[arch], progress = True)
     state_dict = model.state_dict()
 
     fetch_keys = set(fetch_dict.keys())
@@ -104,73 +97,3 @@ def load_pretrain(model: nn.Module, head: str, backbone: str) -> None:
 
     state_dict.update(fetch_dict)
     model.load_state_dict(state_dict)
-
-
-def fcn_resnet50(
-    pretrain: Init = Init.NONE,
-    stride: int = 16,
-    n_classes: int = 21,
-    connector: Conn = Conn.NONE
-) -> nn.Module:
-    '''Constructs a Fully-Convolutional Network model with a ResNet-50 backbone.
-
-    Args:
-        n_classes (int): number of output classes of the model (including the background)
-    '''
-    return _load_model('fcn', 'resnet50', pretrain, stride, n_classes, connector)
-
-
-def fcn_resnet101(
-    pretrain: Init = Init.NONE,
-    stride: int = 16,
-    n_classes: int = 21,
-    connector: Conn = Conn.NONE
-) -> nn.Module:
-    '''Constructs a Fully-Convolutional Network model with a ResNet-101 backbone.
-
-    Args:
-        n_classes (int): number of output classes of the model (including the background)
-    '''
-    return _load_model('fcn', 'resnet101', pretrain, stride, n_classes, connector)
-
-
-def deeplabv3_resnet50(
-    pretrain: Init = Init.NONE,
-    stride: int = 16,
-    n_classes: int = 21,
-    connector: Conn = Conn.NONE
-) -> nn.Module:
-    '''Constructs a DeepLabV3 model with a ResNet-50 backbone.
-
-    Args:
-        n_classes (int): number of output classes of the model (including the background)
-    '''
-    return _load_model('deeplabv3', 'resnet50', pretrain, stride, n_classes, connector)
-
-
-def deeplabv3_resnet101(
-    pretrain: Init = Init.NONE,
-    stride: int = 16,
-    n_classes: int = 21,
-    connector: Conn = Conn.NONE
-) -> nn.Module:
-    '''Constructs a DeepLabV3 model with a ResNet-101 backbone.
-
-    Args:
-        n_classes (int): The number of classes
-    '''
-    return _load_model('deeplabv3', 'resnet101', pretrain, stride, n_classes, connector)
-
-
-def deeplabv3_mobilenet_v3_large(
-    pretrain: Init = Init.NONE,
-    stride: int = 16,
-    n_classes: int = 21,
-    connector: Conn = Conn.NONE
-) -> nn.Module:
-    '''Constructs a DeepLabV3 model with a MobileNetV3-Large backbone.
-
-    Args:
-        n_classes (int): number of output classes of the model (including the background)
-    '''
-    return _load_model('deeplabv3', 'mobilenet_v3_large', pretrain, stride, n_classes, connector)

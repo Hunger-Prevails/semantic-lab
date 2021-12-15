@@ -11,11 +11,7 @@ from datasets import get_loader
 import segmentation
 
 def create_model(args):
-
-    model_name = args.head + '_' + args.backbone
-
-    assert hasattr(segmentation, model_name)
-    model = getattr(segmentation, model_name)(args.pretrain, args.stride, args.n_classes, args.connector)
+    model = segmentation.assemble_and_load(args)
     state = None
 
     if args.resume or args.test_only:
