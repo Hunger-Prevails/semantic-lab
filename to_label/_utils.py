@@ -34,6 +34,11 @@ def to_label(label_image, label_map):
     return label.reshape(shape).astype(np.uint8)
 
 
+def parse_image(label_path, label_map):
+    label_image = np.flip(cv2.imread(label_path), axis = -1).copy()
+    return to_label(label_image, label_map)
+
+
 def to_label_image(label, annotation):
     dest_shape = list(label.shape) + [3]
 

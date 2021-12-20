@@ -3,14 +3,11 @@ import numpy as np
 import random
 
 
-__all__ = ['random_colour']
-
-
 def augment_brightness(image, space):
     if space != 'rgb':
         image = cv2.cvtColor(image, cv2.COLOR_HSV2RGB)
 
-    image += np.random.uniform(- 0.1, 0.1)
+    image += np.random.uniform(- 0.2, 0.2)
 
     return np.clip(image, 0, 1), 'rgb'
 
@@ -20,7 +17,7 @@ def augment_contrast(image, space):
         image = cv2.cvtColor(image, cv2.COLOR_HSV2RGB)
 
     image -= 0.5
-    image = np.multiply(image, np.random.uniform(4 / 5, 5 / 4))
+    image /= np.random.uniform(4 / 5, 5 / 4)
     image += 0.5
     
     return np.clip(image, 0, 1), 'rgb'
@@ -30,7 +27,7 @@ def augment_hue(image, space):
     if space != 'hsv':
         image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
 
-    image[:, :, 0] += np.random.uniform(- 9, 9)
+    image[:, :, 0] += np.random.uniform(- 18, 18)
 
     image[:, :, 0][image[:, :, 0] < 0] += 360
     image[:, :, 0][360 <= image[:, :, 0]] -= 360
@@ -42,7 +39,8 @@ def augment_saturation(image, space):
     if space != 'hsv':
         image = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
 
-    image[:, :, 1] = np.clip(np.multiply(image[:, :, 1], np.random.uniform(4 / 5, 5 / 4)), 0, 1)
+    image[:, :, 1] /= np.random.uniform(4 / 5, 5 / 4)
+    image[:, :, 1] = np.clip(image[:, :, 1], 0, 1)
 
     return image, 'hsv'
 
@@ -67,4 +65,4 @@ def random_colour(image):
     if colorspace != 'rgb':
         dest = cv2.cvtColor(dest, cv2.COLOR_HSV2RGB)
 
-    return (dest * 255).astype(np.uint8)
+    return np.multiply(dest, 255).astype(np.uint8)

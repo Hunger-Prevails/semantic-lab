@@ -12,10 +12,10 @@ class RandomCrop:
         dest_shape (int, int): desired output shape of the crop
     """
     def __init__(self, crop_rate):
-        self.crop_rates = np.linspace(crop_rate, 1.0, num = 6)
+        self.crop_rates = np.linspace(crop_rate, 1.0, num = 5)
 
 
-    def __call__(self, tensor, labels):
+    def __call__(self, batch):
         """
         Args:
             tensor (Tensor): Tensor of size (N, C, H, W) to be cropped
@@ -26,16 +26,22 @@ class RandomCrop:
         """
         crop_rate = random.choice(self.crop_rates)
 
-        h_size, w_size = tensor.shape[2:]
+        h_size, w_size = batch['image'].shape[2:]
         h_dest, w_dest = int(h_size * crop_rate), int(w_size * crop_rate)
 
-        i = torch.randint(0, h_size - h_dest + 1, (tensor.size(0),))
-        j = torch.randint(0, w_size - w_dest + 1, (tensor.size(0),))
+        indices = torch.arange(batch['image'].shape[0])[:, None, None]
+
+        i = torch.randint(0, h_size - h_dest + 1, batch['image'].shape[:1])
+        j = torch.randint(0, w_size - w_dest + 1, batch['image'].shape[:1])
 
         rows = torch.arange(h_dest, dtype = torch.long) + i[:, None]
-        columns = torch.arange(w_dest, dtype = torch.long) + j[:, None]
+        cols = torch.arange(w_dest, dtype = torch.long) + j[:, None]
 
-        new_tensor = tensor.permute(1, 0, 2, 3)
-        new_tensor = new_tensor[:, torch.arange(tensor.size(0))[:, None, None], rows[:, torch.arange(h_dest)[:, None]], columns[:, None]]
-        new_labels = labels[torch.arange(tensor.size(0))[:, None, None], rows[:, torch.arange(h_dest)[:, None]], columns[:, None]]
-        return new_tensor.permute(1, 0, 2, 3), new_labels
+        tensor = batch['image'].permute(1, 0, 2, 3)
+        tensor = tensor[:, indices, rows[:, torch.arange(h_dest)[:, None]], cols[:, None]]
+
+        batch['image'] = tensor.permute(1, 0, 2, 3)
+        batch['label'] = batch['label'][indices, rows[:, torch.arange(h_dest)[:, None]], cols[:, None]]
+
+        if 'atten' in batch:
+            batch['atten'] = batch['atten'][indices, rows[:, torch.arange(h_dest)[:, None]], cols[:, None]]

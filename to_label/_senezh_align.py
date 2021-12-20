@@ -11,14 +11,21 @@ import multiprocessing
 from . import _utils
 
 
-def to_sample(phase, image_path, label_path, label_map, mirror):
-    print('handles', os.path.basename(image_path), 'and', os.path.basename(label_path))
+def to_sample(phase, index, image_path, label_map, mirror):
+    print('handles', os.path.basename(image_path))
 
-    dest_image_path = image_path.replace(phase, phase + '_crop')
-    dest_label_path = label_path.replace(phase, phase + '_crop')
+    label_path = image_path.replace('.png', '_seg.png')
 
-    sample_a = _utils.Sample(dest_image_path, dest_label_path.replace('.png', '.npy'))
-    sample_b = _utils.Sample(dest_image_path, dest_label_path.replace('.0.png', '.1.npy'), to_flip = True)
+    dest_path = os.path.dirname(image_path).replace(phase, phase + '_crop')
+
+    dest_image_name = str(index).zfill(4) + '.orig.png'
+    dest_label_name = str(index).zfill(4) + '.marking.png'
+
+    dest_image_path = os.path.join(dest_path, dest_image_name)
+    dest_label_path = os.path.join(dest_path, dest_label_name)
+
+    sample_a = _utils.Sample(dest_image_path, dest_label_path.replace('.png', '.0.npy'))
+    sample_b = _utils.Sample(dest_image_path, dest_label_path.replace('.png', '.1.npy'), to_flip = True)
 
     if not os.path.exists(sample_a.label_path):
 
@@ -55,14 +62,13 @@ def gather(phase, root, label_map, mirror):
     files = glob.glob(os.path.join(root, phase, '*.png'))
     files.sort()
 
-    label_files = files[0::2]
-    image_files = files[1::2]
+    image_files = files[0::2]
 
     processes = list()
     pool = multiprocessing.Pool(6)
 
-    for image_file, label_file in zip(image_files, label_files):
-        processes += [pool.apply_async(func = to_sample, args = (phase, image_file, label_file, label_map, mirror))]
+    for index, image_file in enumerate(image_files):
+        processes += [pool.apply_async(func = to_sample, args = (phase, index, image_file, label_map, mirror))]
 
     pool.close()
     pool.join()
@@ -79,18 +85,16 @@ def main():
     with open('/home/yinglun.liu/Datasets/metadata.json') as file:
         metadata = json.load(file)
 
-    root = metadata['root']['smile_architect']
+    root = metadata['root']['senezh_align']
 
-    annotation = metadata['annotation']['smile_architect']
+    annotation = metadata['annotation']['senezh_align']
 
-    mirror = np.array(metadata['mirror']['smile_architect'])
+    mirror = np.array(metadata['mirror']['senezh_align'])
     mirror = dict(np.vstack([mirror, np.flip(mirror, axis = -1)]).tolist())
 
     label_map = dict([(tuple(anno), i) for i, anno in enumerate(annotation)])
 
     gather('test', root, label_map, mirror)
-    gather('train', root, label_map, mirror)
-    gather('validation', root, label_map, mirror)
 
 
 if __name__ == '__main__':

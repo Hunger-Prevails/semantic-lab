@@ -45,7 +45,7 @@ class Trainer:
 
         for i, batch in enumerate(self.data_loader):
             if self.enc_crop:
-                batch['image'], batch['label'] = self.crop_func(batch['image'], batch['label'])
+                self.crop_func(batch)
 
             batch['image'] = batch['image'].to(device)
             batch['label'] = batch['label'].to(device, dtype = torch.long)

@@ -11,7 +11,9 @@ meta['stddvn'] = stddvn
 
 root = dict(
     smile_view = '/home/yinglun.liu/Datasets/smile_view',
-    smile_architect = '/home/yinglun.liu/Datasets/smile_architect'
+    smile_architect = '/home/yinglun.liu/Datasets/smile_architect',
+    senezh_align = '/home/yinglun.liu/Datasets/senezh_align',
+    senezh_exocad = '/home/yinglun.liu/Datasets/senezh_exocad'
 )
 meta['root'] = root
 
@@ -53,7 +55,51 @@ smile_view_anno = [
     [90, 90, 90],
     [85, 85, 85]
 ]
-annotation = dict(smile_view = smile_view_anno, smile_architect = smile_view_anno)
+senezh_anno = [
+    [0, 0, 0],
+    [128, 0, 0],
+    [0, 128, 0],
+    [128, 128, 0],
+    [0, 0, 128],
+    [128, 0, 128],
+    [0, 128, 128],
+    [128, 128, 128],
+    [64, 0, 0],
+    [192, 0, 0],
+    [64, 128, 0],
+    [192, 128, 0],
+    [64, 0, 128],
+    [192, 0, 128],
+    [64, 128, 128],
+    [192, 128, 128],
+    [0, 64, 0],
+    [128, 64, 0],
+    [0, 192, 0],
+    [128, 192, 0],
+    [128, 128, 0],
+    [0, 64, 128],
+    [128, 64, 128],
+    [0, 192, 128],
+    [128, 192, 128],
+    [64, 64, 0],
+    [192, 64, 0],
+    [64, 192, 0],
+    [192, 192, 0],
+    [64, 64, 128],
+    [194, 64, 128],
+    [64, 192, 128],
+    [192, 192, 128],
+    [0, 0, 64],
+    [128, 0, 64],
+    [0, 128, 64],
+    [128, 128, 64]
+]
+annotation = dict(
+    smile_view = smile_view_anno,
+    smile_architect = smile_view_anno,
+    senezh_align = smile_view_anno,
+    senezh_exocad = senezh_anno
+)
 meta['annotation'] = annotation
 
 smile_view_mirror = [
@@ -74,7 +120,12 @@ smile_view_mirror = [
     [26, 29],
     [27, 28]
 ]
-mirror = dict(smile_view = smile_view_mirror, smile_architect = smile_view_mirror)
+mirror = dict(
+    smile_view = smile_view_mirror,
+    smile_architect = smile_view_mirror,
+    senezh_align = smile_view_mirror,
+    senezh_exocad = smile_view_mirror
+)
 meta['mirror'] = mirror
 
 with open('/home/yinglun.liu/Datasets/metadata.json', 'w') as file:
