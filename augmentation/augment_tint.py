@@ -2,6 +2,10 @@ import cv2
 import numpy as np
 import random
 
+from functools import partial
+
+from torchvision.transforms import functional as F
+
 
 def augment_brightness(image, space):
     if space != 'rgb':
@@ -45,7 +49,7 @@ def augment_saturation(image, space):
     return image, 'hsv'
 
 
-def random_colour(image):
+def augment_tint(image):
     '''
     performs random colour augmentation for the given image
 
@@ -66,3 +70,30 @@ def random_colour(image):
         dest = cv2.cvtColor(dest, cv2.COLOR_HSV2RGB)
 
     return np.multiply(dest, 255).astype(np.uint8)
+
+
+class TintSway(object):
+    def __init__(self, max_hue):
+        self.functor = dict()
+        self.functor['hue'] = F.adjust_hue
+        self.functor['contrast'] = F.adjust_contrast
+        self.functor['saturation'] = F.adjust_saturation
+        self.functor['brightness'] = lambda image, shift: image + shift
+
+        self.params = dict()
+        self.params['hue'] = [- max_hue, max_hue]
+        self.params['contrast'] = [4 / 5, 5 / 4]
+        self.params['saturation'] = [4 / 5, 5 / 4]
+        self.params['brightness'] = [- 1 / 5, 1 / 5]
+
+        self.names = ['hue', 'contrast', 'saturation', 'brightness']
+
+
+    def apply(self, name, ret):
+        param = np.random.uniform(self.params[name][0], self.params[name][1])
+        ret['image'] = self.functor[name](ret['image'], param)
+
+
+    def __call__(self, ret):
+        random.shuffle(self.names)
+        map(partial(self.apply, ret = ret), self.names)

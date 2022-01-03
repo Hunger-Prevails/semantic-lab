@@ -12,13 +12,12 @@ parser.add_argument('-connector', type=lambda name: Conn[name], help='connector 
 
 # bool options
 parser.add_argument('-shuffle', action='store_true', help='shuffle train samples at the start of each epoch')
-parser.add_argument('-enc_crop', action='store_true', help='whether to perform random crop augmentation')
 parser.add_argument('-half_acc', action='store_true', help='whether to use half precision for speed-up and memory efficiency')
 parser.add_argument('-attention', action='store_true', help='whether to apply attention scores on loss computation')
 parser.add_argument('-save_spec', action='store_true', help='whether to save label predictions for test samples')
 parser.add_argument('-test_only', action='store_true', help='only performs test')
-parser.add_argument('-enc_colour', action='store_true', help='whether to perform random colour perturbation')
-
+parser.add_argument('-augment_rand_crop', action='store_true', help='whether to crop out subregions by chance')
+parser.add_argument('-augment_tint_sway', action='store_true', help='whether to sway pixel tint by a small amount')
 # required options
 parser.add_argument('-head', required=True, help='head struction')
 parser.add_argument('-suffix', required=True, help='Model suffix')
@@ -38,6 +37,7 @@ parser.add_argument('-n_workers', default=2, type=int, help='number of subproces
 parser.add_argument('-batch_size', default=64, type=int, help='size of mini-batches for each iteration')
 parser.add_argument('-n_iters_start', default=256, type=int, help='number of iterations in the warmup phase')
 parser.add_argument('-n_channels_pyramid', default=256, type=int, help='number of channels the feature pyramid produces')
+parser.add_argument('-n_steps_rand_crop', default=5, type=int, help='number of possible crop rates')
 parser.add_argument('-n_iters_check_loss', default=32, type=int, help='number of iterations over which to average the losses')
 parser.add_argument('-n_iters_check_model', default=512, type=int, help='number of iterations before next validation checkpoint')
 
@@ -48,7 +48,6 @@ parser.add_argument('-learn_rate_decay', default=0.6, type=float, help='learn ra
 parser.add_argument('-learn_rate_haven', default=1e-5, type=float, help='bottom learn rate')
 
 # float options
-parser.add_argument('-crop_rate', default=0.8, type=float, help='boundary crop rate for random crop')
 parser.add_argument('-weight_decay', default=5e-4, type=float, help='weight decay factor for regularization')
 parser.add_argument('-grad_clip_norm', default=5.0, type=float, help='norm for gradient clip')
 parser.add_argument('-grad_scale_factor', default=32.0, type=float, help='loss scale multiplier for half precision backward pass')

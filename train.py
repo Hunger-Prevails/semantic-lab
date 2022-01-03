@@ -7,7 +7,6 @@ import adapter
 import criteria
 
 from metrics import Counter
-from augmentation import RandomCrop
 
 class Trainer:
 
@@ -15,7 +14,6 @@ class Trainer:
         self.model = model
         self.writer = writer
 
-        self.enc_crop = args.enc_crop
         self.attention = args.attention
         self.n_classes = args.n_classes
 
@@ -24,8 +22,6 @@ class Trainer:
 
     def set_loader(self, args, data_loader):
         self.data_loader = data_loader
-
-        self.crop_func = RandomCrop(args.crop_rate)
         self.optimizer = optim.Adam(self.model.parameters(), args.learn_rate, weight_decay = args.weight_decay)
 
         self.adapter = adapter.__dict__.get(args.adapter + 'Adapter')
@@ -44,9 +40,6 @@ class Trainer:
         self.adapter.schedule(self.writer.state)
 
         for i, batch in enumerate(self.data_loader):
-            if self.enc_crop:
-                self.crop_func(batch)
-
             batch['image'] = batch['image'].to(device)
             batch['label'] = batch['label'].to(device, dtype = torch.long)
             if self.attention:
