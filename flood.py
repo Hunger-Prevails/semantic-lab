@@ -34,8 +34,10 @@ def update(samples, weights, stats):
 	weights = np.divide(weights, weights.sum())
 
 
-def ransac(mask):
-	samples = np.stack(np.where(mask)).T
+def ransac(label):
+	smask = flood(label)
+
+	samples = np.stack(np.where(smask)).T
 	weights = np.ones(samples.shape[0]) / samples.shape[0]
 
 	for i in range(100):
@@ -49,18 +51,18 @@ def ransac(mask):
 
 	remains = ranks[:samples.shape[0] - samples.shape[0] // 10]
 
-	new_mask = np.zeros(mask.shape, dtype = bool)
+	new_mask = np.zeros(smask.shape, dtype = bool)
 	new_mask[samples[remains, 0], samples[remains, 1]] = True
 
-	return new_mask.astype(int)
+	return new_mask
 
 
 def flood(label):
-	mask = (label != 0).astype(np.uint8)
-	mask = cv2.dilate(mask, None, iterations = 20)
-	mask = cv2.erode(mask, None, iterations = 20)
+	smask = (label != 0).astype(np.uint8)
+	smask = cv2.dilate(smask, None, iterations = 20)
+	smask = cv2.erode(smask, None, iterations = 20)
 
-	return mask
+	return smask.astype(bool)
 
 
 def main(path):

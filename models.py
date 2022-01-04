@@ -2,13 +2,15 @@ import torch
 import segmentation
 
 from segmentation import Init
+from segmentation import Conn
 
 class FakeArgs:
     def __init__(self):
         self.head = 'deeplabv3'
         self.backbone = 'resnet50'
 
-        self.stride_lift = False
+        self.pretrain = Init.NONE
+        self.connector = Conn.NONE
 
         self.stride = 8
         self.n_classes = 36
@@ -16,10 +18,7 @@ class FakeArgs:
 
 def create_model(fargs, model_path):
     print('=> loads checkpoint')
-    model_name = fargs.head + '_' + fargs.backbone
-
-    assert hasattr(segmentation, model_name)
-    model = getattr(segmentation, model_name)(Init.NONE, fargs.stride, fargs.n_classes, False, fargs.stride_lift)
+    model = segmentation.assemble_and_load(fargs)
 
     fetch_dict = torch.load(model_path)['model']
     state_dict = model.state_dict()

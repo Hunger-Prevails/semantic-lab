@@ -21,12 +21,11 @@ np.seterr(all = 'raise')
 class Anonymizer(object):
 
 	def __init__(self, model, metadata):
-
 		self.model = model
 		self.metadata = metadata
 
 
-	def save_fig(self, save_path, srce_image, jaws_image, mask_image, face_bbox, jaws_bbox, y_coord = None):
+	def save_fig(self, save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label, y_coord = None):
 		plt.figure(figsize = (16, 8))
 
 		Rectangle = partial(patches.Rectangle, linewidth = 2, facecolor = 'none')
@@ -43,7 +42,7 @@ class Anonymizer(object):
 		ax.imshow(jaws_image)
 
 		ax = plt.subplot(1, 4, 3)
-		ax.imshow(utils.to_label_image(mask_image, annotation))
+		ax.imshow(utils.to_label_image(jaws_label, annotation))
 
 		if y_coord is not None:
 			ax = plt.subplot(1, 4, 4)
@@ -57,6 +56,7 @@ class Anonymizer(object):
 	def anonymize(self, image_path):
 		image_name = os.path.basename(image_path)
 		figur_name = image_name.replace('.png', '.jpg')
+		label_name = image_name.replace('.png', '.npy')
 
 		if os.path.exists(os.path.join(self.dest_path, figur_name)):
 			return
@@ -64,7 +64,7 @@ class Anonymizer(object):
 
 		srce_image = np.flip(cv2.imread(image_path), axis = -1).copy()
 		try:
-			face_bbox, jaws_bbox = utils.detect_jaws(srce_image)
+			face_bbox, jaws_bbox, face_marks = utils.detect_jaws(srce_image)
 		except BoxException as exception:
 			print('=> => => {:s} on {:s}'.format(exception.message, image_path))
 			print('=> => => copies image to', self.fail_path['detect'])
@@ -75,12 +75,10 @@ class Anonymizer(object):
 			return
 
 		jaws_image = utils.crop_jaws(srce_image, jaws_bbox)
-		mask_image = utils.detect_teeth(jaws_image, self.model, self.metadata)
-		mask_image = flood.ransac(flood.flood(mask_image))
-
+		jaws_label = utils.detect_teeth(jaws_image, self.model, self.metadata)
 		annotation = self.metadata['annotation']['smile_view']
 		try:
-			y_coord = utils.get_y_coord(jaws_bbox, mask_image, len(annotation))
+			y_coord = utils.get_y_coord(jaws_bbox, flood.ransac(jaws_label), len(annotation))
 		except:
 			print('=> => => smodel fails on', image_path)
 			print('=> => => copies image to', self.fail_path['smodel'])
@@ -88,13 +86,17 @@ class Anonymizer(object):
 			if not os.path.exists(self.fail_path['smodel']):
 				os.mkdir(self.fail_path['smodel'])
 			cv2.imwrite(os.path.join(self.fail_path['smodel'], image_name), np.flip(srce_image, axis = -1))
-			np.save(os.path.join(self.fail_path['smodel'], image_name.replace('.png', '.npy')), mask_image)
+			np.save(os.path.join(self.fail_path['smodel'], label_name), jaws_label)
 			save_path = os.path.join(self.fail_path['smodel'], figur_name)
-			self.save_fig(save_path, srce_image, jaws_image, mask_image, face_bbox, jaws_bbox)
+			self.save_fig(save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label)
 			return
 
-		save_path = os.path.join(self.dest_path, figur_name)
-		self.save_fig(save_path, srce_image, jaws_image, mask_image, face_bbox, jaws_bbox, y_coord)
+		anonym_crop = np.flip(srce_image[int(y_coord):], axis = -1)
+		cv2.imwrite(os.path.join(self.dest_path, image_name), anonym_crop)
+		landmarks = os.path.join(self.dest_path, image_name.replace('.png', '.landmarks.json'))
+
+		with open(landmarks, 'w') as file:
+			file.write(json.dumps(face_marks))
 
 
 	def run(self, srce_path, dest_path):

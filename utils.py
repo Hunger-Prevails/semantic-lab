@@ -2,6 +2,8 @@ import numpy as np
 
 from exceptions import BoxException
 
+from torch.nn import functional as F
+
 def detect_teeth(image, model, metadata):
     import torch
     from torchvision import transforms
@@ -14,11 +16,14 @@ def detect_teeth(image, model, metadata):
     image_transforms = transforms.Compose(image_transforms)
 
     tensor = torch.unsqueeze(image_transforms(image), dim = 0).cuda()
+    tensor_shape = tensor.shape[2:]
+    tensor = F.interpolate(tensor, size = [320, 480], mode = 'bilinear', align_corners = False)
 
     with torch.no_grad():
         logits = model(tensor)
+        logits = F.interpolate(logits['layer4'].detach(), size = tensor_shape)
 
-    return logits['out'].detach().cpu().numpy().argmax(axis = 1).squeeze()
+    return logits.cpu().numpy().argmax(axis = 1).squeeze()
 
 
 def detect_jaws(image):
@@ -52,20 +57,20 @@ def detect_jaws(image):
 
     jaws_bbox = np.array([border_l, border_t, border_r - border_l, border_b - border_t]).astype(int)
 
-    return face_bbox, jaws_bbox
+    return face_bbox, jaws_bbox, face_marks
 
 
 def crop_jaws(image, jaws_bbox):
     return image[jaws_bbox[1]:jaws_bbox[1] + jaws_bbox[3], jaws_bbox[0]:jaws_bbox[0] + jaws_bbox[2]].copy()
 
 
-def fetch_mark(label, w_coord, n_classes, vert_mass):
-    h_coords = np.where(np.logical_and(0 < label[:, w_coord], label[:, w_coord] < n_classes))[0]
+def fetch_mark(smask, w_coord, n_classes, vert_mass):
+    h_coords = np.where(smask[:, w_coord])[0]
     return [np.amin(h_coords) - vert_mass, np.amax(h_coords) - vert_mass]
 
 
-def fetch_shape(label, n_classes):
-    h_coords, w_coords = np.where(np.logical_and(0 < label, label < n_classes))
+def fetch_shape(smask, n_classes):
+    h_coords, w_coords = np.where(smask)
 
     vert_mass = np.mean(h_coords)
 
@@ -73,17 +78,17 @@ def fetch_shape(label, n_classes):
 
     w_range = np.linspace(bound_a, bound_b, num = 9).astype(int)[1:-1]
 
-    marks = [fetch_mark(label, w_coord, n_classes, vert_mass) for w_coord in w_range]
+    marks = [fetch_mark(smask, w_coord, n_classes, vert_mass) for w_coord in w_range]
     marks = np.stack(marks).flatten().tolist()
     marks = np.array(marks + [bound_b - bound_a, 1])
 
     return dict(marks = marks, vert_mass = vert_mass)
 
 
-def get_y_coord(jaws_bbox, label, n_classes):
+def get_y_coord(jaws_bbox, smask, n_classes):
     weights = np.load('res/weights.npy')
 
-    shape = fetch_shape(label, n_classes)
+    shape = fetch_shape(smask, n_classes)
 
     return shape['vert_mass'] - np.dot(shape['marks'], weights) + jaws_bbox[1]
 
