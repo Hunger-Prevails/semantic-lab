@@ -25,13 +25,14 @@ class Anonymizer(object):
 		self.metadata = metadata
 
 
-	def save_fig(self, save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label, y_coord = None):
+	def as_flow(self, save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label):
 		plt.figure(figsize = (16, 8))
 
 		Rectangle = partial(patches.Rectangle, linewidth = 2, facecolor = 'none')
 		annotation = self.metadata['annotation']['smile_view']
 
 		ax = plt.subplot(1, 4, 1)
+		ax.axis('off')
 		ax.imshow(srce_image)
 		rect = Rectangle((face_bbox[0], face_bbox[1]), face_bbox[2], face_bbox[3], edgecolor = 'r')
 		ax.add_patch(rect)
@@ -39,24 +40,39 @@ class Anonymizer(object):
 		ax.add_patch(rect)
 
 		ax = plt.subplot(1, 4, 2)
+		ax.axis('off')
 		ax.imshow(jaws_image)
 
 		ax = plt.subplot(1, 4, 3)
+		ax.axis('off')
 		ax.imshow(utils.to_label_image(jaws_label, annotation))
-
-		if y_coord is not None:
-			ax = plt.subplot(1, 4, 4)
-			ax.imshow(srce_image)
-			ax.axhline(y = y_coord, color = 'g')
 
 		plt.savefig(save_path)
 		plt.close()
+
+
+	def as_dest(self, srce_image, y_coord, face_marks):
+		dest_image = srce_image.copy()
+		dest_image[:y_coord] = 0
+
+		with open('res/colormap.json') as file:
+			colormap = json.load(file)
+
+		for key in face_marks:
+			landmarks = np.stack(face_marks[key])
+			landmarks = landmarks[landmarks[:, 1] < y_coord]
+
+			for landmark in landmarks:
+				cv2.circle(dest_image, tuple(landmark), 4, colormap[key], cv2.FILLED)
+
+		return dest_image
 
 
 	def anonymize(self, image_path):
 		image_name = os.path.basename(image_path)
 		figur_name = image_name.replace('.png', '.jpg')
 		label_name = image_name.replace('.png', '.npy')
+		marks_name = image_name.replace('.png', '.landmarks.json')
 
 		if os.path.exists(os.path.join(self.dest_path, figur_name)):
 			return
@@ -78,7 +94,7 @@ class Anonymizer(object):
 		jaws_label = utils.detect_teeth(jaws_image, self.model, self.metadata)
 		annotation = self.metadata['annotation']['smile_view']
 		try:
-			y_coord = utils.get_y_coord(jaws_bbox, flood.ransac(jaws_label), len(annotation))
+			y_coord = utils.get_y_coord(jaws_bbox, flood.ransac(jaws_label))
 		except:
 			print('=> => => smodel fails on', image_path)
 			print('=> => => copies image to', self.fail_path['smodel'])
@@ -88,18 +104,17 @@ class Anonymizer(object):
 			cv2.imwrite(os.path.join(self.fail_path['smodel'], image_name), np.flip(srce_image, axis = -1))
 			np.save(os.path.join(self.fail_path['smodel'], label_name), jaws_label)
 			save_path = os.path.join(self.fail_path['smodel'], figur_name)
-			self.save_fig(save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label)
+			self.as_flow(save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label)
 			return
 
-		anonym_crop = np.flip(srce_image[int(y_coord):], axis = -1)
-		cv2.imwrite(os.path.join(self.dest_path, image_name), anonym_crop)
-		landmarks = os.path.join(self.dest_path, image_name.replace('.png', '.landmarks.json'))
-
-		with open(landmarks, 'w') as file:
+		with open(os.path.join(self.dest_path, marks_name), 'w') as file:
 			file.write(json.dumps(face_marks))
 
+		dest_image = self.as_dest(srce_image, int(y_coord), face_marks)
+		cv2.imwrite(os.path.join(self.dest_path, image_name), np.flip(dest_image, axis = -1))
 
-	def run(self, srce_path, dest_path):
+
+	def __call__(self, srce_path, dest_path):
 		self.srce_path = srce_path
 		self.dest_path = dest_path
 		self.fail_path = dict(
@@ -123,7 +138,7 @@ def main(model_path, srce_path, dest_path):
 		metadata = json.load(file)
 
 	anonymizer = Anonymizer(model, metadata)
-	anonymizer.run(srce_path, dest_path)
+	anonymizer(srce_path, dest_path)
 
 
 if __name__ == '__main__':

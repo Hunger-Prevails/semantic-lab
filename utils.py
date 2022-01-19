@@ -64,12 +64,12 @@ def crop_jaws(image, jaws_bbox):
     return image[jaws_bbox[1]:jaws_bbox[1] + jaws_bbox[3], jaws_bbox[0]:jaws_bbox[0] + jaws_bbox[2]].copy()
 
 
-def fetch_mark(smask, w_coord, n_classes, vert_mass):
+def fetch_mark(smask, w_coord, vert_mass):
     h_coords = np.where(smask[:, w_coord])[0]
     return [np.amin(h_coords) - vert_mass, np.amax(h_coords) - vert_mass]
 
 
-def fetch_shape(smask, n_classes):
+def fetch_shape(smask):
     h_coords, w_coords = np.where(smask)
 
     vert_mass = np.mean(h_coords)
@@ -78,17 +78,17 @@ def fetch_shape(smask, n_classes):
 
     w_range = np.linspace(bound_a, bound_b, num = 9).astype(int)[1:-1]
 
-    marks = [fetch_mark(smask, w_coord, n_classes, vert_mass) for w_coord in w_range]
+    marks = [fetch_mark(smask, w_coord, vert_mass) for w_coord in w_range]
     marks = np.stack(marks).flatten().tolist()
     marks = np.array(marks + [bound_b - bound_a, 1])
 
     return dict(marks = marks, vert_mass = vert_mass)
 
 
-def get_y_coord(jaws_bbox, smask, n_classes):
+def get_y_coord(jaws_bbox, smask):
     weights = np.load('res/weights.npy')
 
-    shape = fetch_shape(smask, n_classes)
+    shape = fetch_shape(smask)
 
     return shape['vert_mass'] - np.dot(shape['marks'], weights) + jaws_bbox[1]
 
