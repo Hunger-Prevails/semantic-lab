@@ -15,16 +15,15 @@ def main():
     root = metadata['root']['senezh_exocad']
 
     annotation = metadata['annotation']['senezh_exocad']
+    annotation = np.array(annotation)
 
     mirror = np.array(metadata['mirror']['senezh_exocad'])
     mirror = dict(np.vstack([mirror, np.flip(mirror, axis = -1)]).tolist())
 
-    label_map = dict([(tuple(anno), i) for i, anno in enumerate(annotation)])
-
-    gather(label_map, mirror, root, 'test')
+    gather(annotation, mirror, root, 'test')
 
 
-def gather(label_map, mirror, root, phase):
+def gather(annotation, mirror, root, phase):
     print('gathers', phase, 'samples')
 
     files = glob.glob(os.path.join(root, phase, '*.png'))
@@ -36,21 +35,16 @@ def gather(label_map, mirror, root, phase):
     samples = list()
 
     for image_file, label_file in zip(image_files, label_files):
-        sample = _utils.Sample(image_file, label_file.replace('.png', '.marking.0.npy'))
-        
-        if not os.path.exists(sample.label_path):
-            label = _utils.parse_image(label_file, label_map)
-            np.save(sample.label_path, label)
+        sample_a = _utils.Sample(image_file, label_file.replace('.png', '.marking.0.npy'))
+        sample_b = _utils.Sample(image_file, label_file.replace('.png', '.marking.1.npy'), to_flip = True)
 
-        samples.append(sample)
-        m_sample = _utils.Sample(image_file, label_file.replace('.png', '.marking.1.npy'), to_flip = True)
+        samples += [sample_a, sample_b]
 
-        if not os.path.exists(m_sample.label_path):
-            label = np.load(sample.label_path)
-            m_label = _utils.flip(label, mirror)
-            np.save(m_sample.label_path, m_label)
+        if not os.path.exists(sample_a.label_path):
+            np.save(sample_a.label_path, _utils.parse_image(label_file, annotation))
 
-        samples.append(m_sample)
+        if not os.path.exists(sample_b.label_path):
+            np.save(sample_b.label_path, _utils.flip(np.load(sample_a.label_path), mirror))
 
     with open(os.path.join(root, phase + '.pkl'), 'wb') as file:
         file.write(pickle.dumps(samples))

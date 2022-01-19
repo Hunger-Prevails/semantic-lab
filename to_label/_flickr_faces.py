@@ -11,21 +11,15 @@ import multiprocessing
 from . import _utils
 
 
-def to_sample(phase, index, image_path, annotation, mirror):
-    print('handles', os.path.basename(image_path))
+def to_sample(root, phase, image_name, annotation, mirror):
+    print('handles', image_name)
 
-    label_path = image_path.replace('.png', '_seg.png')
-
-    dest_path = os.path.dirname(image_path).replace(phase, phase + '_crop')
-
-    dest_image_name = str(index).zfill(4) + '.orig.png'
-    dest_label_name = str(index).zfill(4) + '.marking.png'
-
-    dest_image_path = os.path.join(dest_path, dest_image_name)
-    dest_label_path = os.path.join(dest_path, dest_label_name)
-
-    sample_a = _utils.Sample(dest_image_path, dest_label_path.replace('.png', '.0.npy'))
-    sample_b = _utils.Sample(dest_image_path, dest_label_path.replace('.png', '.1.npy'), to_flip = True)
+    image_path = os.path.join(root, phase, image_name)
+    label_path = os.path.join(root, phase, image_name.replace('.png', '.marking.png'))
+    final_path = os.path.join(root, phase + '_crop', image_name)
+    
+    sample_a = _utils.Sample(final_path, final_path.replace('.png', '.marking.0.npy'))
+    sample_b = _utils.Sample(final_path, final_path.replace('.png', '.marking.1.npy'), to_flip = True)
 
     if not os.path.exists(sample_a.label_path):
         image = cv2.imread(image_path)
@@ -44,7 +38,7 @@ def to_sample(phase, index, image_path, annotation, mirror):
         dest_image = cv2.resize(crop_image, (480, 320))
         dest_label = cv2.resize(crop_label, (480, 320), interpolation = cv2.INTER_NEAREST)
 
-        cv2.imwrite(dest_image_path, np.flip(dest_image, axis = -1))
+        cv2.imwrite(final_path, np.flip(dest_image, axis = -1))
 
         np.save(sample_a.label_path, dest_label)
 
@@ -62,16 +56,15 @@ def gather(phase, root, annotation, mirror):
     if not os.path.exists(os.path.join(root, phase + '_crop')):
         os.mkdir(os.path.join(root, phase + '_crop'))
 
-    files = glob.glob(os.path.join(root, phase, '*.png'))
-    files.sort()
-
-    image_files = files[0::2]
+    image_files = os.listdir(os.path.join(root, phase))
+    image_files.sort()
+    image_files = image_files[1::2]
 
     processes = list()
     pool = multiprocessing.Pool(6)
 
-    for index, image_file in enumerate(image_files):
-        processes += [pool.apply_async(func = to_sample, args = (phase, index, image_file, annotation, mirror))]
+    for image_file in image_files:
+        processes += [pool.apply_async(func = to_sample, args = (root, phase, image_file, annotation, mirror))]
 
     pool.close()
     pool.join()
@@ -88,12 +81,12 @@ def main():
     with open('/home/yinglun.liu/Datasets/metadata.json') as file:
         metadata = json.load(file)
 
-    root = metadata['root']['senezh_align']
+    root = metadata['root']['flickr_faces']
 
-    annotation = metadata['annotation']['senezh_align']
+    annotation = metadata['annotation']['flickr_faces']
     annotation = np.array(annotation)
 
-    mirror = np.array(metadata['mirror']['senezh_align'])
+    mirror = np.array(metadata['mirror']['flickr_faces'])
     mirror = dict(np.vstack([mirror, np.flip(mirror, axis = -1)]).tolist())
 
     gather('test', root, annotation, mirror)

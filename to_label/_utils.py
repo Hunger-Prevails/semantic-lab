@@ -9,8 +9,6 @@ class Sample:
             image_name = os.path.basename(image_path)
             label_name = os.path.basename(label_path)
 
-            assert image_name.split('.')[1] == 'orig'
-            assert label_name.split('.')[1] == 'marking'
             assert image_name.split('.')[0] == label_name.split('.')[0]
         except:
             print('file mismatch:', image_path, label_path)
@@ -26,17 +24,22 @@ class Sample:
         return np.flip(image, axis = 1).copy() if self.to_flip else image.copy()
 
 
-def to_label(label_image, label_map):
-    shape = label_image.shape[:2]
+def to_label(label_image, annotation):
+    dimensions = label_image.shape[:2]
 
-    label = np.array([label_map.get(tuple(pixel), len(label_map)) for pixel in label_image.reshape(-1, 3)])
+    label_image = np.expand_dims(label_image.reshape(-1, 3), axis = 1)
 
-    return label.reshape(shape).astype(np.uint8)
+    label = np.abs(label_image - annotation).sum(axis = -1)
+    label = np.argmin(label, axis = -1)
+
+    return label.reshape(dimensions)
 
 
-def parse_image(label_path, label_map):
-    label_image = np.flip(cv2.imread(label_path), axis = -1).copy()
-    return to_label(label_image, label_map)
+def parse_image(label_path, annotation):
+    label_image = cv2.imread(label_path)
+    label_image = np.flip(label_image, axis = -1).copy()
+
+    return to_label(label_image, annotation)
 
 
 def to_label_image(label, annotation):
@@ -57,8 +60,10 @@ def flip(label, mirror):
     return m_label.reshape(shape)
 
 
-def crop_box(label, n_classes):
-    h_coords, w_coords = np.where(np.logical_and(0 < label, label < n_classes))
+def crop_box(label_image, hinter):
+    vorder = np.abs(label_image - hinter).sum(axis = -1)
+
+    h_coords, w_coords = np.where(vorder != 0)
 
     t_bound, b_bound = np.amin(h_coords), np.amax(h_coords)
     l_bound, r_bound = np.amin(w_coords), np.amax(w_coords)

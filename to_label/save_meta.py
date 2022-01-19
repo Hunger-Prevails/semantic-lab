@@ -13,13 +13,52 @@ root = dict(
     smile_view = '/home/yinglun.liu/Datasets/smile_view',
     smile_architect = '/home/yinglun.liu/Datasets/smile_architect',
     senezh_align = '/home/yinglun.liu/Datasets/senezh_align',
-    senezh_exocad = '/home/yinglun.liu/Datasets/senezh_exocad'
+    senezh_exocad = '/home/yinglun.liu/Datasets/senezh_exocad',
+    flickr_faces = '/home/yinglun.liu/Datasets/flickr_faces'
 )
 meta['root'] = root
 
 smile_view_anno = [
     [255, 255, 255],
     [0, 255, 0],
+    [0, 0, 0],
+    [80, 80, 80],
+    [255, 0, 0],
+    [5, 5, 5],
+    [10, 10, 10],
+    [15, 15, 15],
+    [20, 20, 20],
+    [25, 25, 25],
+    [30, 30, 30],
+    [35, 35, 35],
+    [40, 40, 40],
+    [45, 45, 45],
+    [50, 50, 50],
+    [55, 55, 55],
+    [60, 60, 60],
+    [65, 65, 65],
+    [70, 70, 70],
+    [75, 75, 75],
+    [160, 160, 160],
+    [155, 155, 155],
+    [150, 150, 150],
+    [145, 145, 145],
+    [140, 140, 140],
+    [135, 135, 135],
+    [130, 130, 130],
+    [125, 125, 125],
+    [120, 120, 120],
+    [115, 115, 115],
+    [110, 110, 110],
+    [105, 105, 105],
+    [100, 100, 100],
+    [95, 95, 95],
+    [90, 90, 90],
+    [85, 85, 85]
+]
+smile_architect_anno = [
+    [255, 255, 255],
+    [0, 128, 0],
     [0, 0, 0],
     [80, 80, 80],
     [255, 0, 0],
@@ -76,7 +115,6 @@ senezh_anno = [
     [128, 64, 0],
     [0, 192, 0],
     [128, 192, 0],
-    [128, 128, 0],
     [0, 64, 128],
     [128, 64, 128],
     [0, 192, 128],
@@ -96,9 +134,10 @@ senezh_anno = [
 ]
 annotation = dict(
     smile_view = smile_view_anno,
-    smile_architect = smile_view_anno,
+    smile_architect = smile_architect_anno,
     senezh_align = smile_view_anno,
-    senezh_exocad = senezh_anno
+    senezh_exocad = senezh_anno,
+    flickr_faces = senezh_anno
 )
 meta['annotation'] = annotation
 
@@ -124,7 +163,8 @@ mirror = dict(
     smile_view = smile_view_mirror,
     smile_architect = smile_view_mirror,
     senezh_align = smile_view_mirror,
-    senezh_exocad = smile_view_mirror
+    senezh_exocad = smile_view_mirror,
+    flickr_faces = smile_view_mirror
 )
 meta['mirror'] = mirror
 

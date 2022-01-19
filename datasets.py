@@ -8,6 +8,8 @@ import numpy as np
 import torch
 import torch.utils.data as data
 
+from functools import partial
+
 import augmentation
 
 
@@ -39,18 +41,14 @@ class Dataset(data.Dataset):
             metadata = json.load(file)
 
         self.samples = []
-        for data_name in args.data_name:
-            n_samples = getattr(self, 'get_' + data_name + '_samples')(metadata['root'][data_name], phase)
-
-            print('=> => collects [ {:d} ] {:s} samples from {:s}'.format(n_samples, phase, data_name))
+        list(map(partial(self.fetch_samples, metadata = metadata, phase = phase), args.data_name))
 
         transforms = []
 
         if args.augment_rand_crop and phase == 'train':
             transforms += [augmentation.RandCrop(args.n_steps_rand_crop, [320, 480])]
 
-        if args.augment_tint_sway and phase == 'train':
-            transforms += [augmentation.TintSway(0.05)]
+        self.augment_tint_sway = args.augment_tint_sway and phase == 'train'
 
         transforms += [augmentation.Normalize(metadata['mean'], metadata['stddvn'])]
 
@@ -58,26 +56,17 @@ class Dataset(data.Dataset):
         assert self.__len__() != 0
 
 
-    def get_smile_view_samples(self, root, phase):
-        with open(os.path.join(root, phase + '.pkl'), 'rb') as file:
+    def fetch_samples(self, data_name, metadata, phase):
+        data_path = os.path.join(metadata['root'][data_name], phase + '.pkl')
+
+        with open(data_path, 'rb') as file:
             samples = pickle.load(file)
 
         if phase != 'train':
             samples = [sample for sample in samples if not sample.to_flip]
 
         self.samples += samples
-        return len(samples)
-
-
-    def get_smile_architect_samples(self, root, phase):
-        with open(os.path.join(root, phase + '.pkl'), 'rb') as file:
-            samples = pickle.load(file)
-
-        if phase != 'train':
-            samples = [sample for sample in samples if not sample.to_flip]
-
-        self.samples += samples
-        return len(samples)
+        print('=> => collects [ {:d} ] {:s} samples from {:s}'.format(len(samples), phase, data_name))
 
 
     def to_atten(self, label):
@@ -95,6 +84,9 @@ class Dataset(data.Dataset):
     def parse_sample(self, sample):
         image = sample.read()
         label = np.load(sample.label_path)
+
+        if self.augment_tint_sway:
+            image = augmentation.augment_tint(image)
 
         ret = dict(image = to_tensor(image), label = torch.from_numpy(label))
         if self.attention:

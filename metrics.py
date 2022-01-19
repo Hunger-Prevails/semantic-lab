@@ -4,7 +4,7 @@ class Counter:
 
     def __init__(self, n_classes):
         self.n_classes = n_classes
-        self.confusion = np.zeros((n_classes, n_classes))
+        self.confusion = np.zeros((n_classes, n_classes), dtype = np.int32)
 
 
     def update(self, labels, predictions):
@@ -14,7 +14,11 @@ class Counter:
 
     def fast_hist(self, label, prediction):
         flag = label < self.n_classes
-        hist = np.bincount(self.n_classes * label[flag] + prediction[flag], None, self.n_classes ** 2)
+
+        indices = np.multiply(self.n_classes, label[flag]) + prediction[flag]
+
+        hist = np.bincount(indices, None, np.power(self.n_classes, 2))
+
         return hist.reshape(self.n_classes, self.n_classes)
 
 
