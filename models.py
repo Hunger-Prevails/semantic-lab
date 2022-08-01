@@ -10,10 +10,11 @@ class FakeArgs:
         self.backbone = 'resnet50'
 
         self.pretrain = Init.NONE
-        self.connector = Conn.NONE
+        self.connector = Conn.PYRAMID
 
-        self.stride = 8
+        self.stride = 32
         self.n_classes = 36
+        self.n_channels_pyramid = 256
 
 
 def create_model(fargs, model_path):

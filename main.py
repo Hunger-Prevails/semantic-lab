@@ -12,6 +12,7 @@ from functools import partial
 import utils
 import flood
 import models
+import time
 
 from models import FakeArgs
 from exceptions import BoxException
@@ -23,15 +24,17 @@ class Anonymizer(object):
 	def __init__(self, model, metadata):
 		self.model = model
 		self.metadata = metadata
+		self.total_elapse = 0
+		self.total_number = 0
 
 
 	def as_flow(self, save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label):
 		plt.figure(figsize = (16, 8))
 
 		Rectangle = partial(patches.Rectangle, linewidth = 2, facecolor = 'none')
-		annotation = self.metadata['annotation']['smile_view']
+		annotation = self.metadata['annotation']['flickr_faces']
 
-		ax = plt.subplot(1, 4, 1)
+		ax = plt.subplot(1, 3, 1)
 		ax.axis('off')
 		ax.imshow(srce_image)
 		rect = Rectangle((face_bbox[0], face_bbox[1]), face_bbox[2], face_bbox[3], edgecolor = 'r')
@@ -39,11 +42,11 @@ class Anonymizer(object):
 		rect = Rectangle((jaws_bbox[0], jaws_bbox[1]), jaws_bbox[2], jaws_bbox[3], edgecolor = 'b')
 		ax.add_patch(rect)
 
-		ax = plt.subplot(1, 4, 2)
+		ax = plt.subplot(1, 3, 2)
 		ax.axis('off')
 		ax.imshow(jaws_image)
 
-		ax = plt.subplot(1, 4, 3)
+		ax = plt.subplot(1, 3, 3)
 		ax.axis('off')
 		ax.imshow(utils.to_label_image(jaws_label, annotation))
 
@@ -74,7 +77,7 @@ class Anonymizer(object):
 		label_name = image_name.replace('.png', '.npy')
 		marks_name = image_name.replace('.png', '.landmarks.json')
 
-		if os.path.exists(os.path.join(self.dest_path, figur_name)):
+		if os.path.exists(os.path.join(self.dest_path, image_name)):
 			return
 		print('=> => anonymizes image:', image_name)
 
@@ -91,8 +94,16 @@ class Anonymizer(object):
 			return
 
 		jaws_image = utils.crop_jaws(srce_image, jaws_bbox)
+
+		time_b = time.time()
+
 		jaws_label = utils.detect_teeth(jaws_image, self.model, self.metadata)
-		annotation = self.metadata['annotation']['smile_view']
+
+		time_e = time.time()
+
+		self.total_elapse += time_e - time_b
+		self.total_number += 1
+
 		try:
 			y_coord = utils.get_y_coord(jaws_bbox, flood.ransac(jaws_label))
 		except:
@@ -110,6 +121,8 @@ class Anonymizer(object):
 		with open(os.path.join(self.dest_path, marks_name), 'w') as file:
 			file.write(json.dumps(face_marks))
 
+		save_path = os.path.join(self.dest_path, figur_name)
+		self.as_flow(save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label)
 		dest_image = self.as_dest(srce_image, int(y_coord), face_marks)
 		cv2.imwrite(os.path.join(self.dest_path, image_name), np.flip(dest_image, axis = -1))
 
@@ -127,6 +140,8 @@ class Anonymizer(object):
 		image_paths.sort()
 		for image_path in image_paths:
 			self.anonymize(image_path)
+
+		print('=> => time elapse for model inference:', self.total_elapse / self.total_number)
 
 		print('<= anonimization finishes')
 
