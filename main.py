@@ -54,7 +54,7 @@ class Anonymizer(object):
 		plt.close()
 
 
-	def as_dest(self, srce_image, y_coord, face_marks):
+	def as_dest(self, save_path, srce_image, y_coord, face_marks):
 		dest_image = srce_image.copy()
 		dest_image[:y_coord] = 0
 
@@ -68,7 +68,7 @@ class Anonymizer(object):
 			for landmark in landmarks:
 				cv2.circle(dest_image, tuple(landmark), 4, colormap[key], cv2.FILLED)
 
-		return dest_image
+		cv2.imwrite(save_path, np.flip(dest_image, axis = -1))
 
 
 	def anonymize(self, image_path):
@@ -82,16 +82,8 @@ class Anonymizer(object):
 		print('=> => anonymizes image:', image_name)
 
 		srce_image = np.flip(cv2.imread(image_path), axis = -1).copy()
-		try:
-			face_bbox, jaws_bbox, face_marks = utils.detect_jaws(srce_image)
-		except BoxException as exception:
-			print('=> => => {:s} on {:s}'.format(exception.message, image_path))
-			print('=> => => copies image to', self.fail_path['detect'])
 
-			if not os.path.exists(self.fail_path['detect']):
-				os.mkdir(self.fail_path['detect'])
-			cv2.imwrite(os.path.join(self.fail_path['detect'], image_name), np.flip(srce_image, axis = -1))
-			return
+		face_bbox, jaws_bbox, face_marks = utils.detect_jaws(srce_image)
 
 		jaws_image = utils.crop_jaws(srce_image, jaws_bbox)
 
@@ -104,27 +96,25 @@ class Anonymizer(object):
 		self.total_elapse += time_e - time_b
 		self.total_number += 1
 
-		try:
-			y_coord = utils.get_y_coord(jaws_bbox, flood.ransac(jaws_label))
-		except:
-			print('=> => => smodel fails on', image_path)
-			print('=> => => copies image to', self.fail_path['smodel'])
-
-			if not os.path.exists(self.fail_path['smodel']):
-				os.mkdir(self.fail_path['smodel'])
-			cv2.imwrite(os.path.join(self.fail_path['smodel'], image_name), np.flip(srce_image, axis = -1))
-			np.save(os.path.join(self.fail_path['smodel'], label_name), jaws_label)
-			save_path = os.path.join(self.fail_path['smodel'], figur_name)
-			self.as_flow(save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label)
-			return
+		y_coord = utils.get_y_coord(jaws_bbox, flood.ransac(jaws_label))
 
 		with open(os.path.join(self.dest_path, marks_name), 'w') as file:
 			file.write(json.dumps(face_marks))
 
-		save_path = os.path.join(self.dest_path, figur_name)
-		self.as_flow(save_path, srce_image, face_bbox, jaws_bbox, jaws_image, jaws_label)
-		dest_image = self.as_dest(srce_image, int(y_coord), face_marks)
-		cv2.imwrite(os.path.join(self.dest_path, image_name), np.flip(dest_image, axis = -1))
+		self.as_flow(
+			os.path.join(self.dest_path, figur_name),
+			srce_image,
+			face_bbox,
+			jaws_bbox,
+			jaws_image,
+			jaws_label
+		)
+		self.as_dest(
+			os.path.join(self.dest_path, image_name),
+			srce_image,
+			int(y_coord),
+			face_marks
+		)
 
 
 	def __call__(self, srce_path, dest_path):

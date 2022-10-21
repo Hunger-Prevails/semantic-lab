@@ -40,15 +40,15 @@ def ransac(label):
 	samples = np.stack(np.where(smask)).T
 	weights = np.ones(samples.shape[0]) / samples.shape[0]
 
-	for i in range(100):
+	for i in range(50):
 		indices = np.random.choice(samples.shape[0], samples.shape[0] // 2, False)
 		stats = statistics(samples[indices])
 		update(samples, weights, stats)
 
 	ranks = np.argsort(weights)
 	stats = statistics(samples[ranks[samples.shape[0] // 10:]])
-	ranks = rank_by_dist(samples, stats['center'], stats['covariances'])
 
+	ranks = rank_by_dist(samples, stats['center'], stats['covariances'])
 	remains = ranks[:samples.shape[0] - samples.shape[0] // 10]
 
 	new_mask = np.zeros(smask.shape, dtype = bool)
